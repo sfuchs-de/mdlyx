@@ -30,5 +30,5 @@ keyring = { version = "3.6", features = ["apple-native"] }
 uuid = { version = "1", features = ["v4"] }
 sha2 = "0.10"
 [dev-dependencies]
-base64 = "0.22"
+base64 = "0.23"
 minisign-verify = "0.2.5"
