@@ -1,0 +1,24 @@
+# JavaScript / Vite
+node_modules/
+dist/
+dist-server/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+
+# Rust / Tauri generated output
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+!.env.tauri.example
+.DS_Store
+.claude/

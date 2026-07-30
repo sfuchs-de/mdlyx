@@ -1,0 +1,55 @@
+# Copy and customize this file only after reading docs/SELF_HOSTING.md.
+services:
+  - type: web
+    name: your-mdlyx-api
+    runtime: node
+    branch: main
+    buildCommand: npm ci && npm run build && npm run build:api
+    startCommand: npm run start:api
+    healthCheckPath: /ready
+    envVars:
+      - key: APP_ORIGIN
+        value: https://your-mdlyx-api.example
+      - key: API_ORIGIN
+        value: https://your-mdlyx-api.example
+      - key: VITE_LIBRARY_API_URL
+        value: https://your-mdlyx-api.example
+      - key: VITE_APP_ORIGIN
+        value: https://your-mdlyx-api.example
+      - key: ALLOWED_GITHUB_LOGIN
+        sync: false
+      - key: LIBRARY_OWNER
+        sync: false
+      - key: LIBRARY_REPO
+        sync: false
+      - key: LIBRARY_BRANCH
+        value: main
+      - key: LIBRARY_PROTECTED_BRANCH
+        value: main
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: INVITE_TOKEN_SECRET
+        generateValue: true
+      - key: GITHUB_APP_ID
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_INSTALLATION_ID
+        sync: false
+      - key: GITHUB_PRIVATE_KEY_FILE
+        value: /etc/secrets/mdlyx-github-app.pem
+      - key: PENDING_DEVICE_STORE
+        value: redis
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: your-mdlyx-auth-kv
+          property: connectionString
+  - type: keyvalue
+    name: your-mdlyx-auth-kv
+    plan: starter
+    ipAllowList: []
+    maxmemoryPolicy: volatile-ttl
+    persistenceMode: off

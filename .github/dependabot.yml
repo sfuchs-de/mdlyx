@@ -1,0 +1,56 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      npm-patch-and-minor:
+        patterns:
+          - "*"
+        update-types:
+          - patch
+          - minor
+    ignore:
+      - dependency-name: katex
+        versions: [">=0.17.0"]
+      - dependency-name: mathlive
+        versions: [">=0.106.0"]
+      - dependency-name: typescript
+        versions: [">=6.0.0"]
+      - dependency-name: jsdom
+        versions: [">=26.0.0"]
+      - dependency-name: "@types/node"
+        versions: [">=23.0.0"]
+      - dependency-name: "@dagrejs/dagre"
+        versions: [">=2.0.0"]
+      - dependency-name: vite
+        versions: [">=7.0.0"]
+      - dependency-name: vitest
+        versions: [">=5.0.0"]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: cargo
+    directory: /src-tauri
+    schedule:
+      interval: weekly
+    groups:
+      cargo-patch-and-minor:
+        patterns:
+          - "*"
+        update-types:
+          - patch
+          - minor
+    ignore:
+      - dependency-name: sha2
+        versions: [">=0.11.0"]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns:
+          - "*"
