@@ -1,21 +1,28 @@
-# Copy and customize this file only after reading docs/SELF_HOSTING.md.
+# Copy and customize this file only after reading docs/GITHUB_SYNC.md.
+# This example creates paid resources and is not a one-click managed service.
+# Replace every `your-` placeholder and upload the GitHub App PEM as a Render
+# Secret File before expecting /ready to succeed.
 services:
   - type: web
     name: your-mdlyx-api
     runtime: node
+    plan: starter
+    region: oregon
     branch: main
     buildCommand: npm ci && npm run build && npm run build:api
     startCommand: npm run start:api
     healthCheckPath: /ready
     envVars:
+      - key: NODE_ENV
+        value: production
       - key: APP_ORIGIN
-        value: https://your-mdlyx-api.example
+        value: https://your-mdlyx-api.onrender.com
       - key: API_ORIGIN
-        value: https://your-mdlyx-api.example
+        value: https://your-mdlyx-api.onrender.com
       - key: VITE_LIBRARY_API_URL
-        value: https://your-mdlyx-api.example
+        value: https://your-mdlyx-api.onrender.com
       - key: VITE_APP_ORIGIN
-        value: https://your-mdlyx-api.example
+        value: https://your-mdlyx-api.onrender.com
       - key: ALLOWED_GITHUB_LOGIN
         sync: false
       - key: LIBRARY_OWNER
@@ -26,6 +33,8 @@ services:
         value: main
       - key: LIBRARY_PROTECTED_BRANCH
         value: main
+      - key: LIBRARY_ACCESS_POLICY_PATH
+        value: library-access.yaml
       - key: SESSION_SECRET
         generateValue: true
       - key: INVITE_TOKEN_SECRET
@@ -50,6 +59,7 @@ services:
   - type: keyvalue
     name: your-mdlyx-auth-kv
     plan: starter
+    region: oregon
     ipAllowList: []
     maxmemoryPolicy: volatile-ttl
     persistenceMode: off

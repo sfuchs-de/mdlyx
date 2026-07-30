@@ -10,6 +10,7 @@ npm-debug.log*
 test-results/
 playwright-report/
 blob-report/
+test-generated-library/
 
 # Rust / Tauri generated output
 src-tauri/target/

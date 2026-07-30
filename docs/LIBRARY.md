@@ -30,5 +30,18 @@ Project result manifests use:
 Validation states are `validated`, `partial`, `unvalidated`, and `disputed`.
 Task states are `next`, `in-progress`, `blocked`, `later`, and `done`.
 
-Use `npm run audit:overview -- /path/to/library --strict` to validate a library
-that includes a compatible review baseline.
+Use the general validator for any readable Markdown library:
+
+```bash
+npm run library:validate -- --root /path/to/library
+```
+
+It does not require fixed project counts or a governance lock. Mature governed
+libraries can additionally use:
+
+```bash
+npm run audit:overview -- /path/to/library --strict
+```
+
+That advanced command requires a compatible `library-review.yaml` and
+deterministic lock. See [Create a research library](CREATE_LIBRARY.md).

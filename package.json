@@ -1,7 +1,7 @@
 {
   "name": "mdlyx",
   "private": false,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A local-first, Markdown-native mathematical research editor.",
   "license": "MIT",
   "repository": {
@@ -48,6 +48,12 @@
     "lint:rust": "cargo fmt --manifest-path src-tauri/Cargo.toml --check && cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings",
     "preaudit:overview": "node scripts/require-node-22.mjs",
     "audit:overview": "tsx scripts/audit-project-overview.ts",
+    "prelibrary:init": "node scripts/require-node-22.mjs",
+    "library:init": "tsx scripts/init-library.ts",
+    "prelibrary:validate": "node scripts/require-node-22.mjs",
+    "library:validate": "tsx scripts/validate-library.ts",
+    "predocs:check": "node scripts/require-node-22.mjs",
+    "docs:check": "tsx scripts/check-docs.ts",
     "privacy:check": "node scripts/privacy-check.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",

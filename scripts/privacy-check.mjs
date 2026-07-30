@@ -1,7 +1,11 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-const files = execFileSync("git", ["ls-files", "-z"], { encoding: "utf8" })
+const files = execFileSync(
+  "git",
+  ["ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+  { encoding: "utf8" },
+)
   .split("\0")
   .filter(Boolean)
   .filter((path) => path !== "scripts/privacy-check.mjs")
@@ -39,4 +43,4 @@ if (findings.length) {
   process.exit(1);
 }
 
-console.log(`Privacy check passed (${files.length} tracked text files inspected).`);
+console.log(`Privacy check passed (${files.length} repository text files inspected).`);
