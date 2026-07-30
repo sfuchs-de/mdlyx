@@ -1,6 +1,6 @@
 [package]
 name = "mdlyx"
-version = "0.1.0"
+version = "0.1.1"
 description = "Desktop shell for the MdLyx mathematical research editor"
 authors = ["MdLyx contributors"]
 repository = "https://github.com/sfuchs-de/mdlyx"

@@ -5,6 +5,7 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   testMatch: "**/*.e2e.ts",
+  globalSetup: "./e2e/global-setup.ts",
   fullyParallel: true,
   // Tests wait on explicit editor/render state. A retry would hide a real race.
   retries: 0,
@@ -32,6 +33,7 @@ export default defineConfig({
         "**/persistence.e2e.ts",
         "**/ui-stabilization.e2e.ts",
         "**/accessibility.e2e.ts",
+        "**/onboarding.e2e.ts",
       ],
     },
     {
