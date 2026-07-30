@@ -1,0 +1,320 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`golden fixtures > 001-inline-math.md > exports to LaTeX deterministically (golden) 1`] = `
+"\\documentclass{article}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{hyperref}
+\\begin{document}
+
+\\section{Inline math}
+
+The relation $E = mc^2$ sits inside a sentence, next to $\\sqrt{2}$ and a
+fraction $\\frac{a}{b}$.
+
+\\end{document}
+"
+`;
+
+exports[`golden fixtures > 001-inline-math.md > serializes deterministically (golden) 1`] = `
+"# Inline math
+
+The relation $E = mc^2$ sits inside a sentence, next to $\\sqrt{2}$ and a
+fraction $\\frac{a}{b}$.
+"
+`;
+
+exports[`golden fixtures > 002-display-math.md > exports to LaTeX deterministically (golden) 1`] = `
+"\\documentclass{article}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{hyperref}
+\\begin{document}
+
+\\section{Display math}
+
+\\begin{equation}
+\\int_0^1 x^2\\,dx = \\frac{1}{3}
+\\label{eq:integral}
+\\end{equation}
+
+An unnumbered one:
+
+\\begin{equation*}
+a^2 + b^2 = c^2
+\\end{equation*}
+
+\\end{document}
+"
+`;
+
+exports[`golden fixtures > 002-display-math.md > serializes deterministically (golden) 1`] = `
+"# Display math
+
+$$
+\\int_0^1 x^2\\,dx = \\frac{1}{3}
+$$ {#eq:integral}
+
+An unnumbered one:
+
+$$
+a^2 + b^2 = c^2
+$$ {numbered=false}
+"
+`;
+
+exports[`golden fixtures > 003-labels-refs.md > exports to LaTeX deterministically (golden) 1`] = `
+"\\documentclass{article}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{hyperref}
+\\begin{document}
+
+\\section{Labels and references}
+\\label{sec:main}
+
+\\begin{equation}
+E = mc^2
+\\label{eq:energy}
+\\end{equation}
+
+As shown in Equation~\\eqref{eq:energy} and discussed in Section~\\ref{sec:main}, mass and energy relate.
+A dangling reference Equation~\\eqref{eq:nope} should be flagged.
+
+\\end{document}
+"
+`;
+
+exports[`golden fixtures > 003-labels-refs.md > serializes deterministically (golden) 1`] = `
+"# Labels and references {#sec:main}
+
+$$
+E = mc^2
+$$ {#eq:energy}
+
+As shown in @eq:energy and discussed in @sec:main, mass and energy relate.
+A dangling reference @eq:nope should be flagged.
+"
+`;
+
+exports[`golden fixtures > 004-align.md > exports to LaTeX deterministically (golden) 1`] = `
+"\\documentclass{article}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{hyperref}
+\\begin{document}
+
+\\section{Align environment}
+
+\\begin{align}
+a &= b + c \\\\
+d &= e + f
+\\label{eq:system}
+\\end{align}
+
+\\end{document}
+"
+`;
+
+exports[`golden fixtures > 004-align.md > serializes deterministically (golden) 1`] = `
+"# Align environment
+
+$$
+a &= b + c \\\\
+d &= e + f
+$$ {#eq:system env=align}
+"
+`;
+
+exports[`golden fixtures > 005-macros.md > exports to LaTeX deterministically (golden) 1`] = `
+"\\documentclass{article}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{hyperref}
+\\newcommand{\\RR}{\\mathbb{R}}
+\\newcommand{\\dd}{\\,\\mathrm{d}}
+\\numberwithin{equation}{section}
+\\begin{document}
+
+\\section{Macros and numbering}
+
+We work over $\\RR$ throughout.
+
+\\begin{equation}
+\\int_\\RR f(x)\\dd x
+\\label{eq:intR}
+\\end{equation}
+
+\\end{document}
+"
+`;
+
+exports[`golden fixtures > 005-macros.md > serializes deterministically (golden) 1`] = `
+"---
+macros:
+  RR: "\\mathbb{R}"
+  dd: "\\,\\mathrm{d}"
+numbering:
+  equations: section
+---
+
+# Macros and numbering
+
+We work over $\\RR$ throughout.
+
+$$
+\\int_\\RR f(x)\\dd x
+$$ {#eq:intR}
+"
+`;
+
+exports[`golden fixtures > 006-broken-latex.md > exports to LaTeX deterministically (golden) 1`] = `
+"\\documentclass{article}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{hyperref}
+\\begin{document}
+
+\\section{Broken LaTeX}
+
+Inline with an unbalanced brace $\\frac{a}{$ should not crash anything.
+
+\\begin{equation}
+\\begin{cases} x \\\\ y
+\\label{eq:broken}
+\\end{equation}
+
+Text continues normally after the broken block.
+
+\\end{document}
+"
+`;
+
+exports[`golden fixtures > 006-broken-latex.md > serializes deterministically (golden) 1`] = `
+"# Broken LaTeX
+
+Inline with an unbalanced brace $\\frac{a}{$ should not crash anything.
+
+$$
+\\begin{cases} x \\\\ y
+$$ {#eq:broken}
+
+Text continues normally after the broken block.
+"
+`;
+
+exports[`golden fixtures > 007-mixed.md > exports to LaTeX deterministically (golden) 1`] = `
+"\\documentclass{article}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{hyperref}
+\\begin{document}
+
+\\section{Mixed document}
+\\label{sec:intro}
+
+A paragraph with \\textbf{bold}, \\emph{italic}, \\texttt{code}, a \\href{https://ex.com}{link}, and
+inline math $x_n = x_{n-1} + 1$.
+
+\\begin{equation}
+S = \\sum_{n=1}^{\\infty} \\frac{1}{n^2} = \\frac{\\pi^2}{6}
+\\label{eq:basel}
+\\end{equation}
+
+See Equation~\\eqref{eq:basel}.
+
+\\begin{itemize}
+  \\item a list item
+  \\item another with math $\\alpha$
+\\end{itemize}
+
+\\begin{quote}
+A quote containing $\\beta$.
+\\end{quote}
+
+\\begin{verbatim}
+print("hello")
+\\end{verbatim}
+
+\\end{document}
+"
+`;
+
+exports[`golden fixtures > 007-mixed.md > serializes deterministically (golden) 1`] = `
+"# Mixed document {#sec:intro}
+
+A paragraph with **bold**, *italic*, \`code\`, a [link](https://ex.com), and
+inline math $x_n = x_{n-1} + 1$.
+
+$$
+S = \\sum_{n=1}^{\\infty} \\frac{1}{n^2} = \\frac{\\pi^2}{6}
+$$ {#eq:basel}
+
+See @eq:basel.
+
+- a list item
+- another with math $\\alpha$
+
+> A quote containing $\\beta$.
+
+\`\`\`python
+print("hello")
+\`\`\`
+"
+`;
+
+exports[`golden fixtures > 008-tables-rules.md > exports to LaTeX deterministically (golden) 1`] = `
+"\\documentclass{article}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{hyperref}
+\\begin{document}
+
+\\section{Tables and rules}
+
+A small table with math and formatting in cells:
+
+\\begin{tabular}{lll}
+\\hline
+Symbol & Meaning & Value \\\\
+\\hline
+$\\alpha$ & \\textbf{growth} rate & $0.1$ \\\\
+$\\beta$ & \\emph{decay} with a \\texttt{pipe} & $-0.15$ \\\\
+\\hline
+\\end{tabular}
+
+\\par\\noindent\\rule{\\linewidth}{0.4pt}\\par
+
+Text after a horizontal rule.
+
+\\begin{tabular}{ll}
+\\hline
+A & B \\\\
+\\hline
+1 & 2 \\\\
+\\hline
+\\end{tabular}
+
+\\end{document}
+"
+`;
+
+exports[`golden fixtures > 008-tables-rules.md > serializes deterministically (golden) 1`] = `
+"# Tables and rules
+
+A small table with math and formatting in cells:
+
+| Symbol | Meaning | Value |
+| --- | --- | --- |
+| $\\alpha$ | **growth** rate | $0.1$ |
+| $\\beta$ | *decay* with a \`pipe\` | $-0.15$ |
+
+---
+
+Text after a horizontal rule.
+
+| A | B |
+| --- | --- |
+| 1 | 2 |
+"
+`;

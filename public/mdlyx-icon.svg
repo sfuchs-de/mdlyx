@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title description">
+  <title id="title">MdLyx</title>
+  <desc id="description">Six charcoal hexagons surrounding a cobalt center hexagon on warm paper.</desc>
+
+  <!--
+    Canonical MdLyx app mark.
+
+    The seven cells are identical rounded regular hexagons. Their centers follow
+    a regular hexagonal lattice with a 12 px optical seam. Keep this SVG as the
+    source for web icons and Tauri bundle assets so both surfaces stay aligned.
+  -->
+  <defs>
+    <path
+      id="cell"
+      d="M 117.44,-13.51
+         Q 124,0 117.44,13.51
+         L 68.56,98.16
+         Q 62,107.39 49,107.39
+         L -49,107.39
+         Q -62,107.39 -68.56,98.16
+         L -117.44,13.51
+         Q -124,0 -117.44,-13.51
+         L -68.56,-98.16
+         Q -62,-107.39 -49,-107.39
+         L 49,-107.39
+         Q 62,-107.39 68.56,-98.16
+         Z"
+    />
+  </defs>
+
+  <rect x="48" y="48" width="928" height="928" rx="216" fill="#F6F4EE" stroke="#DEDAD0" stroke-width="3" />
+
+  <g fill="#1B1F24">
+    <use href="#cell" transform="translate(512 285.23)" />
+    <use href="#cell" transform="translate(708.39 398.61)" />
+    <use href="#cell" transform="translate(708.39 625.39)" />
+    <use href="#cell" transform="translate(512 738.77)" />
+    <use href="#cell" transform="translate(315.61 625.39)" />
+    <use href="#cell" transform="translate(315.61 398.61)" />
+  </g>
+  <use href="#cell" transform="translate(512 512)" fill="#2563EB" />
+</svg>
