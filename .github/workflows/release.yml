@@ -1,0 +1,153 @@
+name: Public desktop release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: public-desktop-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  macos-universal:
+    name: Validate and publish universal macOS development build
+    runs-on: macos-14
+    timeout-minutes: 120
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out the tagged commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require an explicit version tag on main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "$GITHUB_REF_TYPE" != "tag" || ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Dispatch this workflow from the exact vX.Y.Z tag to publish." >&2
+            exit 1
+          fi
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || {
+            echo "Release tags must point to a commit contained in main." >&2
+            exit 1
+          }
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists and will not be replaced." >&2
+            exit 1
+          fi
+
+      - name: Require successful main CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          successful_runs="$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow ci.yml \
+            --branch main \
+            --event push \
+            --commit "$GITHUB_SHA" \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq 'length')"
+          [[ "$successful_runs" == "1" ]] || {
+            echo "No successful main CI run exists for $GITHUB_SHA." >&2
+            exit 1
+          }
+
+      - name: Set up Node 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Rust and universal macOS targets
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable 2026-06-30
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+          components: rustfmt, clippy
+
+      - name: Restore Rust build cache
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: src-tauri
+
+      - name: Install and validate
+        run: |
+          npm ci
+          npm run privacy:check
+          npm run docs:check
+          npm run check
+          npm run lint:rust
+          npm run test:rust
+          npm audit --omit=dev
+          node -e 'const p=require("./package.json"); if (`v${p.version}` !== process.env.GITHUB_REF_NAME) process.exit(1)'
+
+      - name: Build universal app and DMG
+        run: |
+          rm -rf src-tauri/target/universal-apple-darwin/release/bundle
+          npm run tauri:build -- --ci --target universal-apple-darwin --bundles app,dmg -- --locked
+          git diff --exit-code -- src-tauri/Cargo.lock
+
+      - name: Verify and stage deterministic assets
+        run: |
+          bundle="src-tauri/target/universal-apple-darwin/release/bundle"
+          app="$(find "$bundle/macos" -maxdepth 1 -name '*.app' -print -quit)"
+          dmg="$(find "$bundle/dmg" -maxdepth 1 -name '*.dmg' -print -quit)"
+          [[ -n "$app" && -n "$dmg" ]] || {
+            echo "Expected one app and one DMG." >&2
+            exit 1
+          }
+          executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")"
+          architectures="$(lipo -archs "$app/Contents/MacOS/$executable")"
+          [[ "$architectures" == *arm64* && "$architectures" == *x86_64* ]] || {
+            echo "Application is not universal: $architectures" >&2
+            exit 1
+          }
+          codesign --verify --deep --strict "$app"
+          hdiutil verify "$dmg"
+          version="${GITHUB_REF_NAME#v}"
+          mkdir release-artifacts
+          cp "$dmg" "release-artifacts/MdLyx_${version}_universal.dmg"
+          ditto -c -k --sequesterRsrc --keepParent "$app" \
+            "release-artifacts/MdLyx_${version}_universal.app.zip"
+          (cd release-artifacts && shasum -a 256 MdLyx_* > SHA256SUMS)
+          shasum -a 256 -c release-artifacts/SHA256SUMS
+
+      - name: Retain verified candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mdlyx-${{ github.ref_name }}-macos-universal
+          path: release-artifacts/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish immutable public release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          assets=(release-artifacts/*)
+          [[ ${#assets[@]} -eq 3 ]] || {
+            echo "Expected exactly three release assets; found ${#assets[@]}." >&2
+            exit 1
+          }
+          gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --draft \
+            --title "MdLyx $GITHUB_REF_NAME — macOS development build" \
+            --generate-notes \
+            --notes "Universal arm64/x86_64 local-first development build. It is ad-hoc signed, not Apple-notarized, and has no shared updater or managed synchronization service."
+          gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          immutable="$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json isImmutable --jq .isImmutable)"
+          [[ "$immutable" == "true" ]] || {
+            echo "Published release is not immutable." >&2
+            exit 1
+          }

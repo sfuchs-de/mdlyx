@@ -19,6 +19,7 @@ export interface LibraryAssetProvider {
 }
 
 export const MAX_LIBRARY_ASSET_BYTES = 25 * 1024 * 1024;
+const FORMAL_EVIDENCE_EXTENSIONS = new Set(["yaml", "yml", "json", "lean", "toml"]);
 
 const ASSET_MIME_TYPES: Record<string, string> = {
   bib: "application/x-bibtex",
@@ -33,10 +34,18 @@ const ASSET_MIME_TYPES: Record<string, string> = {
   sty: "text/x-tex",
   cls: "text/x-tex",
   bst: "text/plain",
+  yaml: "application/yaml",
+  yml: "application/yaml",
+  json: "application/json",
+  lean: "text/plain",
+  toml: "application/toml",
 };
 
 export function libraryAssetMimeType(path: string): string | null {
   const extension = path.split(".").pop()?.toLowerCase() ?? "";
+  if (FORMAL_EVIDENCE_EXTENSIONS.has(extension) && !path.replace(/\\/g, "/").startsWith("formal/")) {
+    return null;
+  }
   return ASSET_MIME_TYPES[extension] ?? null;
 }
 

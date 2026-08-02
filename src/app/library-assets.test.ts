@@ -8,6 +8,11 @@ import {
 describe("library assets", () => {
   it("accepts safe nested paths", () => {
     expect(validateLibraryAssetPath("assets/figures/clock.pdf")).toBe("assets/figures/clock.pdf");
+    expect(validateLibraryAssetPath("formal/certificate-map.yaml")).toBe("formal/certificate-map.yaml");
+  });
+
+  it("limits structured proof assets to the formal evidence root", () => {
+    expect(() => validateLibraryAssetPath("projects/p/project.yaml")).toThrow(/not supported/);
   });
 
   it.each(["../secret", "/tmp/a", "assets/.hidden/a", "assets//a", "C:\\tmp\\a"])(

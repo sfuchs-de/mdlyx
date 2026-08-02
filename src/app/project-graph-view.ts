@@ -18,6 +18,7 @@ import {
 import type { ProjectCatalogLoadResult } from "./project-catalog-controller";
 import { savedProjectSelection, saveProjectSelection } from "./project-selection";
 import { MobileSheetController } from "./mobile-sheet";
+import { createLeanCertificateBadge } from "./lean-certificate-ui";
 
 export interface ProjectGraphHandlers {
   sources: () => DependencyManifestSource[];
@@ -100,6 +101,7 @@ export class ProjectGraphView {
       const loaded = await this.handlers.loadCatalog(force);
       catalog = loaded.snapshot.dependencyCatalog;
       loadErrors.push(...loaded.errors);
+      loadErrors.push(...(loaded.snapshot.certificateCatalog?.diagnostics ?? []));
     } else {
       const parsed = await Promise.all(sources.map(async (source) => {
         try {
@@ -358,6 +360,9 @@ export class ProjectGraphView {
       detail("Evidence", result.evidence || "No evidence recorded"),
       detail("Remaining condition", result.condition || "None recorded"),
     );
+    if (result.certificate) {
+      host.append(createLeanCertificateBadge(result.certificate, () => void this.openResult(result)));
+    }
     for (const [label, value] of [
       ["Curated status", result.curatedStatus],
       ["Claim class", result.claimClass],

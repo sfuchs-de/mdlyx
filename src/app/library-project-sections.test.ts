@@ -159,6 +159,21 @@ function ids(documents: Array<{ file: LibraryFile }>): string[] {
 }
 
 describe("stable project Library projection", () => {
+  it("reports only the number of certified results owned by a document", () => {
+    const files = [file("index", ["project-overview"]), file("demand", [], { kind: "derivation" })];
+    const catalog = snapshot(files);
+    catalog.certificateCatalog = {
+      byResult: new Map(),
+      byOwner: new Map([["demand", [{ resultId: "R-A" }, { resultId: "R-B" }] as never]]),
+      diagnostics: [],
+      buildState: "passed",
+    };
+
+    const projection = projectLibraryProjection(files, "p", catalog, null);
+    expect(projection.documents.find((item) => item.file.meta.id === "demand")?.leanCertificateCount).toBe(2);
+    expect(projection.documents.find((item) => item.file.meta.id === "index")?.leanCertificateCount).toBe(0);
+  });
+
   it("uses the authored reading path for Focus and preserves its authored order", () => {
     const files = [
       file("index", ["project-overview"]),

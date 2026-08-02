@@ -66,4 +66,40 @@ describe("catalog-backed result references", () => {
     expect(state.doc.eq(doc)).toBe(true);
     expect(resultReferencesKey.getState(state)?.find()).toHaveLength(1);
   });
+
+  it("adds an actionable certificate widget at a matching claim marker", () => {
+    const doc = parseMarkdown("<!-- mathdown-claim:R-CERT -->\n\nClaim text.\n");
+    const certified: ResultReference = {
+      ...overlap,
+      id: "R-CERT",
+      certificate: {
+        resultId: "R-CERT",
+        resultTitle: overlap.title,
+        project: "sample-project",
+        ownerDocumentId: "owner",
+        ownerPath: "projects/sample-project/owner.md",
+        coverage: "partial",
+        status: "kernel-checked",
+        declarations: ["Mathdown.overlap"],
+        certifiedScope: ["finite identity"],
+        assumptions: ["finite matrices"],
+        excludedScope: ["empirical validity"],
+        sourcePath: "formal/Mathdown/Proof.lean",
+        sourceText: "theorem exact_result : True := by trivial",
+        manifestPath: "formal/lake-manifest.json",
+        leanVersion: "4.30.0",
+        mathlibVersion: "4.30.0",
+        buildState: "passed",
+      },
+    };
+    const state = EditorState.create({
+      schema,
+      doc,
+      plugins: [...buildPlugins(), buildResultReferences(() => [certified])],
+    });
+
+    const decorations = resultReferencesKey.getState(state)?.find() ?? [];
+    expect(decorations).toHaveLength(1);
+    expect(decorations[0].spec.key).toBe("lean-certificate:mathdown-claim:R-CERT");
+  });
 });

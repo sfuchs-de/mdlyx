@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { expect, test, type Page, type Route } from "@playwright/test";
 import { parseFrontmatter } from "../src/markdown/frontmatter";
 import { revealLibraryFile } from "./library-helpers";
@@ -18,6 +19,7 @@ interface MockState {
   writes?: Array<{ path: string; text: string; expectedSha?: string }>;
   documentReads?: string[];
   conflict?: RemoteDocument;
+  assets?: Map<string, string>;
 }
 
 async function json(route: Route, body: unknown, status = 200) {
@@ -104,6 +106,43 @@ library: {"id":"project-claims","title":"Project claims","projects":["project-on
   ];
 }
 
+function certificateAssets(): Map<string, string> {
+  const manifest = '{"packages":[{"name":"mathlib"}]}\n';
+  const source = "namespace Mathdown\ntheorem exact_result : True := by trivial\nend Mathdown\n";
+  const digest = (value: string) => `sha256:${createHash("sha256").update(value).digest("hex")}`;
+  const map = `schema_version: 1
+environment:
+  lean: "4.30.0"
+  mathlib: "4.30.0"
+  build_command: "lake build --wfail"
+  root_module: Mathdown
+integrity:
+  build_state: passed
+  manifest:
+    path: formal/lake-manifest.json
+    digest: ${digest(manifest)}
+  sources:
+    - path: formal/Mathdown/Proof.lean
+      digest: ${digest(source)}
+certificates:
+  - result_id: R-A
+    project: project-one
+    owner: project/a.md
+    coverage: partial
+    status: kernel-checked
+    source: formal/Mathdown/Proof.lean
+    declarations: [Mathdown.exact_result]
+    certified_scope: [exact finite identity]
+    assumptions: [finite inputs]
+    excluded_scope: [economic admissibility]
+`;
+  return new Map([
+    ["formal/certificate-map.yaml", map],
+    ["formal/lake-manifest.json", manifest],
+    ["formal/Mathdown/Proof.lean", source],
+  ]);
+}
+
 async function overviewLauncher(
   page: Page,
   project = "project-one",
@@ -170,6 +209,28 @@ async function configure(
       document.text = body.text;
       document.sha = `saved-${state.writes?.length ?? 1}`;
       return json(route, document);
+    }
+    if (url.pathname === "/v2/library/assets" && request.method() === "GET") {
+      if (!state.assets) return json(route, { error: "not found" }, 404);
+      return json(route, {
+        revision: "assets-revision",
+        entries: [...state.assets].map(([path, value]) => ({
+          path,
+          sha: createHash("sha1").update(value).digest("hex"),
+          size: Buffer.byteLength(value),
+        })),
+      });
+    }
+    if (url.pathname === "/v2/library/assets/file" && request.method() === "GET") {
+      const path = url.searchParams.get("path") ?? "";
+      const value = state.assets?.get(path);
+      if (value === undefined) return json(route, { error: "not found" }, 404);
+      return json(route, {
+        path,
+        sha: createHash("sha1").update(value).digest("hex"),
+        size: Buffer.byteLength(value),
+        content: Buffer.from(value).toString("base64"),
+      });
     }
     return json(route, { error: "not found" }, 404);
   });
@@ -265,6 +326,28 @@ test("project overview exposes exact evidence and preserves project navigation",
   await page.getByRole("button", { name: "Full graph" }).click();
   await expect(page.locator("#project-graph")).toBeVisible();
   await expect(page.getByLabel("Project", { exact: true })).toHaveValue("project-one");
+});
+
+test("governed Lean evidence renders through the hosted asset provider", async ({ page }) => {
+  const documents = fixture();
+  const state: MockState = { failList: false, assets: certificateAssets() };
+  await configure(page, documents, state);
+  await openProjectOverview(page);
+
+  const result = page.locator('.overview-key-result-card').filter({ hasText: "R-A" });
+  const badge = result.getByRole("button", { name: /Lean kernel certificate for R-A/ });
+  await expect(badge).toHaveText("L◐");
+  await expect(result).toContainText("validated");
+  await badge.click();
+  const dialog = page.getByRole("dialog", { name: /Lean certificate/ });
+  await expect(dialog).toContainText("partial coverage");
+  await expect(dialog).toContainText("exact finite identity");
+  await expect(dialog).toContainText("economic admissibility");
+  await expect(dialog).toContainText("Mathdown.exact_result");
+  await expect(dialog).toContainText("4.30.0");
+  await expect(dialog).toContainText("project/a.md");
+  await dialog.getByText("View certificate source", { exact: false }).click();
+  await expect(dialog.locator(".lean-certificate-source code")).toContainText("theorem exact_result");
 });
 
 test("phone navigation dismisses the Library drawer and exposes a scrollable overview", async ({ page }) => {

@@ -66,6 +66,7 @@ export interface ProjectLibraryDocument {
   roles: LibraryDocumentRole[];
   attention: LibraryAttentionReason[];
   keyResultCount: number;
+  leanCertificateCount: number;
   derivationCategory: LibraryDerivationCategory | null;
   referenceCategory: LibraryReferenceCategory | null;
   repositoryOrder: number;
@@ -297,6 +298,7 @@ export function projectLibraryProjection(
     const explicitKeyDerivation = contains.has("key-derivation");
     const explicitAdditionalDerivation = contains.has("additional-derivation");
     const keyResultCount = keyResultOwnerCounts.get(id) ?? 0;
+    const leanCertificateCount = snapshot?.certificateCatalog?.byOwner.get(id)?.length ?? 0;
 
     if (explicitKey && explicitSupporting) {
       diagnostics.push(`${path} declares both key-document and supporting-document; curated visibility wins.`);
@@ -384,6 +386,7 @@ export function projectLibraryProjection(
       roles: uniqueRoles,
       attention: unique(attention),
       keyResultCount,
+      leanCertificateCount,
       derivationCategory,
       referenceCategory,
       repositoryOrder,

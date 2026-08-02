@@ -49,6 +49,10 @@ describe("GitHub library API", () => {
   it("accepts only supported repository-relative asset paths", () => {
     expect(normaliseAssetPath("assets/clock.pdf")).toBe("assets/clock.pdf");
     expect(normaliseAssetPath("references/library.bib")).toBe("references/library.bib");
+    expect(normaliseAssetPath("formal/certificate-map.yaml")).toBe("formal/certificate-map.yaml");
+    expect(normaliseAssetPath("formal/Mathdown/Proof.lean")).toBe("formal/Mathdown/Proof.lean");
+    expect(normaliseAssetPath("formal/lake-manifest.json")).toBe("formal/lake-manifest.json");
+    expect(normaliseAssetPath("projects/p/project.yaml")).toBeNull();
     expect(normaliseAssetPath("../secret.pdf")).toBeNull();
     expect(normaliseAssetPath("assets/.hidden.pdf")).toBeNull();
     expect(normaliseAssetPath("notes.md")).toBeNull();

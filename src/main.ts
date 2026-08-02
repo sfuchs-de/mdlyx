@@ -295,11 +295,7 @@ function refreshCatalogResultReferences(): Promise<void> {
     .then(async () => {
       const loaded = await projectCatalog?.load();
       const results = loaded?.snapshot.dependencyCatalog.results ?? [];
-      await setResultReferences(results.map((result) => ({
-        id: result.id,
-        title: result.title,
-        ownerLabel: result.ownerLabel,
-      })));
+      await setResultReferences(results);
     })
     .catch((error: unknown) => {
       // Keep the last known decorations during a transient provider failure.
@@ -423,7 +419,7 @@ const initializeLibrary = async (): Promise<void> => {
             overviewSources: () => library.projectOverviewSources(),
             dependencySources: () => library.dependencyManifestSources(),
             documents: () => library.projectDocuments(),
-          });
+          }, library);
         })
         .finally(() => {
           loadingProjectCatalog = null;

@@ -9,6 +9,10 @@ import {
   type ProjectCatalogSnapshot,
   type ProjectDocumentSummary,
 } from "./project-overview";
+import {
+  loadLeanCertificateCatalog,
+  type LeanCertificateAssetSource,
+} from "./lean-certificates";
 
 export interface ProjectOverviewSource {
   path: string;
@@ -19,6 +23,25 @@ export interface ProjectCatalogInputs {
   overviewSources(): ProjectOverviewSource[];
   dependencySources(): DependencyManifestSource[];
   documents(): ProjectDocumentSummary[];
+}
+
+export interface LeanCertificateLibrary {
+  listAssets(): Promise<readonly { path: string }[]>;
+  readAsset(path: string): Promise<{ bytes: Uint8Array }>;
+}
+
+export async function certificateSource(
+  library: LeanCertificateLibrary,
+): Promise<LeanCertificateAssetSource | null> {
+  let assets;
+  try {
+    assets = await library.listAssets();
+  } catch {
+    // External and one-release-old providers may not expose asset indexes.
+    return null;
+  }
+  if (!assets.some((asset) => asset.path === "formal/certificate-map.yaml")) return null;
+  return { read: async (path) => (await library.readAsset(path)).bytes };
 }
 
 export type ProjectCatalogLoadState = "fresh" | "stale" | "incomplete";
@@ -39,7 +62,10 @@ export class ProjectCatalogController {
   private cached: { generation: number; promise: Promise<ProjectCatalogLoadResult> } | null = null;
   private lastGood: ProjectCatalogSnapshot | null = null;
 
-  constructor(private readonly inputs: ProjectCatalogInputs) {}
+  constructor(
+    private readonly inputs: ProjectCatalogInputs,
+    private readonly certificateLibrary?: LeanCertificateLibrary,
+  ) {}
 
   invalidate(): void {
     this.generation++;
@@ -87,6 +113,29 @@ export class ProjectCatalogController {
       dependencyCatalog,
       documents,
     );
+    try {
+      const source = this.certificateLibrary
+        ? await certificateSource(this.certificateLibrary)
+        : null;
+      const certificates = await loadLeanCertificateCatalog(
+        source,
+        snapshot.dependencyCatalog.results,
+        documents,
+      );
+      snapshot.certificateCatalog = certificates;
+      for (const result of snapshot.dependencyCatalog.results) {
+        result.certificate = certificates.byResult.get(result.id);
+      }
+    } catch (error) {
+      // Formal evidence is optional. A malformed or unavailable support asset
+      // suppresses badges without making the scholarly catalog unusable.
+      snapshot.certificateCatalog = {
+        byResult: new Map(),
+        byOwner: new Map(),
+        diagnostics: [`Lean certificates: ${messageOf(error)}`],
+        buildState: "invalid",
+      };
+    }
 
     // Invalidation can happen while provider reads are in flight. Never let an
     // older generation publish over a newer snapshot (or become its fallback).

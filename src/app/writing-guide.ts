@@ -118,6 +118,12 @@ export const WRITING_GUIDE_SECTIONS: readonly WritingGuideSection[] = [
         keywords: ["claim", "dependency graph", "owner"],
       },
       {
+        title: "Lean certificate evidence",
+        syntax: "L · full coverage   L◐ · partial coverage",
+        description: "These read-only badges come from a governed, pinned Lean build. Open one to inspect the exact certified scope, assumptions, declarations, and exclusions; it never changes the result’s validation state.",
+        keywords: ["lean", "kernel", "certificate", "proof", "formal verification"],
+      },
+      {
         title: "Open a link while editing",
         description: "Use double-click, Cmd/Ctrl-click, Enter on a selected link, or a second touch. A normal click keeps the caret in editable text.",
         shortcut: "⌘/Ctrl-click",
