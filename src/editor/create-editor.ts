@@ -479,6 +479,7 @@ export function createEditor(
         resultReferenceModule = await loadingResultReferences;
         resultReferencePlugin = resultReferenceModule.buildResultReferences(
           () => resultReferences,
+          (resultId) => options.onResultLinkOpen?.(resultId),
         );
       }
       if (

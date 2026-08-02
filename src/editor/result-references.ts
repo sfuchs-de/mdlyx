@@ -2,6 +2,8 @@ import type { Node as PMNode } from "prosemirror-model";
 import { Plugin, PluginKey } from "prosemirror-state";
 import { Decoration, DecorationSet, type EditorView } from "prosemirror-view";
 import { schema } from "./schema";
+import type { LeanCertificateEvidence } from "../app/lean-certificates";
+import { createLeanCertificateBadge } from "../app/lean-certificate-ui";
 
 /**
  * A formal result that can be resolved through the active library's dependency
@@ -12,6 +14,7 @@ export interface ResultReference {
   id: string;
   title: string;
   ownerLabel: string;
+  certificate?: LeanCertificateEvidence;
 }
 
 export interface ResultReferenceMatch {
@@ -96,8 +99,9 @@ export function findResultReferences(
 function buildDecorations(
   doc: PMNode,
   references: readonly ResultReference[],
+  openOwner?: (resultId: string) => void,
 ): DecorationSet {
-  const decorations = findResultReferences(doc, references).map((match) => {
+  const decorations: Decoration[] = findResultReferences(doc, references).map((match) => {
     const description = `${match.reference.id}: ${match.reference.title}. Open ${match.reference.ownerLabel}.`;
     return Decoration.inline(
       match.from,
@@ -116,19 +120,43 @@ function buildDecorations(
       },
     );
   });
+  const { byId } = indexReferences(references);
+  doc.descendants((node, pos) => {
+    if (node.type !== schema.nodes.mathdown_source_marker) return true;
+    const directive = typeof node.attrs.directive === "string" ? node.attrs.directive : "";
+    const match = /^mathdown-(?:claim|derivation|result):(.+)$/.exec(directive);
+    const reference = match ? byId.get(match[1]) : undefined;
+    if (!reference?.certificate) return false;
+    decorations.push(Decoration.widget(
+      pos + node.nodeSize,
+      () => {
+        const wrap = document.createElement("span");
+        wrap.className = "lean-certificate-marker";
+        wrap.contentEditable = "false";
+        wrap.append(createLeanCertificateBadge(
+          reference.certificate!,
+          () => openOwner?.(reference.id),
+        ));
+        return wrap;
+      },
+      { side: -1, key: `lean-certificate:${directive}` },
+    ));
+    return false;
+  });
   return DecorationSet.create(doc, decorations);
 }
 
 export function buildResultReferences(
   getReferences: () => readonly ResultReference[],
+  openOwner?: (resultId: string) => void,
 ): Plugin<DecorationSet> {
   return new Plugin<DecorationSet>({
     key: resultReferencesKey,
     state: {
-      init: (_config, state) => buildDecorations(state.doc, getReferences()),
+      init: (_config, state) => buildDecorations(state.doc, getReferences(), openOwner),
       apply(tr, previous) {
         if (tr.docChanged || tr.getMeta(resultReferencesKey)) {
-          return buildDecorations(tr.doc, getReferences());
+          return buildDecorations(tr.doc, getReferences(), openOwner);
         }
         return previous;
       },

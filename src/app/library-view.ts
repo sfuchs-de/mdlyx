@@ -2086,7 +2086,18 @@ export class LibraryView {
       results.title = `${projection.keyResultCount} curated key ${projection.keyResultCount === 1 ? "result" : "results"}`;
       results.setAttribute("aria-hidden", "true");
       primary.append(results);
-    } else if (projection?.focusPlacement && !projection.roles.includes("overview")) {
+    }
+    if (projection?.leanCertificateCount) {
+      const certificates = el(
+        "span",
+        "lib-file-certificates",
+        `L·${projection.leanCertificateCount}`,
+      );
+      certificates.title = `${projection.leanCertificateCount} Lean-kernel-certified ${projection.leanCertificateCount === 1 ? "result" : "results"} owned by this document`;
+      certificates.setAttribute("aria-hidden", "true");
+      primary.append(certificates);
+    }
+    if (!projection?.keyResultCount && !projection?.leanCertificateCount && projection?.focusPlacement && !projection.roles.includes("overview")) {
       const curated = el("span", "lib-file-curated");
       curated.title = "Included in the project reading path";
       curated.setAttribute("aria-hidden", "true");
@@ -2144,6 +2155,9 @@ export class LibraryView {
       ...(projection?.keyResultCount
         ? [`Owns ${projection.keyResultCount} curated key ${projection.keyResultCount === 1 ? "result" : "results"}`]
         : []),
+      ...(projection?.leanCertificateCount
+        ? [`Owns ${projection.leanCertificateCount} Lean-kernel-certified ${projection.leanCertificateCount === 1 ? "result" : "results"}`]
+        : []),
       ...(projection?.focusPlacement?.purpose
         ? [`Reading purpose: ${projection.focusPlacement.purpose}`]
         : []),
@@ -2171,6 +2185,9 @@ export class LibraryView {
         : []),
       ...(projection?.keyResultCount
         ? [`Owns ${projection.keyResultCount} curated key ${projection.keyResultCount === 1 ? "result" : "results"}`]
+        : []),
+      ...(projection?.leanCertificateCount
+        ? [`Owns ${projection.leanCertificateCount} Lean-kernel-certified ${projection.leanCertificateCount === 1 ? "result" : "results"}`]
         : []),
       ...(projection?.focusPlacement?.purpose
         ? [`Reading purpose: ${projection.focusPlacement.purpose}`]

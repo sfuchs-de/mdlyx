@@ -28,6 +28,7 @@ import {
 } from "./project-overview";
 import { savedProjectSelection, saveProjectSelection } from "./project-selection";
 import { openExternalUrl } from "./tauri-bridge";
+import { createLeanCertificateBadge } from "./lean-certificate-ui";
 
 export interface ProjectOverviewHandlers {
   loadCatalog(force?: boolean): Promise<ProjectCatalogLoadResult>;
@@ -337,6 +338,9 @@ export class ProjectOverviewView {
         el("span", "overview-frontier-detail-copy", `Evidence: ${selected.evidence || "not recorded"}`),
         el("span", "overview-frontier-detail-copy", `Remaining: ${selected.condition || "none recorded"}`),
       );
+      if (selected.certificate) {
+        detail.append(createLeanCertificateBadge(selected.certificate, () => void this.openResult(selected)));
+      }
       panel.append(detail);
     }
     return panel;
@@ -417,6 +421,9 @@ export class ProjectOverviewView {
         el("p", "overview-key-result-detail-copy", `Remaining · ${selected.condition || "None recorded"}`),
         button("Open owner", "overview-mini-button", () => void this.openResult(selected)),
       );
+      if (selected.certificate) {
+        detail.append(createLeanCertificateBadge(selected.certificate, () => void this.openResult(selected)));
+      }
       section.append(detail);
     }
     return section;
@@ -440,6 +447,11 @@ export class ProjectOverviewView {
     });
     select.dataset.resultId = result.id;
     select.setAttribute("aria-pressed", String(result.id === this.selectedResultId));
+    const titleRow = el("div", "overview-key-result-title-row");
+    titleRow.append(select);
+    if (result.certificate) {
+      titleRow.append(createLeanCertificateBadge(result.certificate, () => void this.openResult(result)));
+    }
     const owner = el("p", "overview-key-result-owner");
     owner.append(
       document.createTextNode("Read · "),
@@ -450,7 +462,7 @@ export class ProjectOverviewView {
       ),
     );
     card.append(
-      select,
+      titleRow,
       el(
         "p",
         "overview-key-result-state",
@@ -512,6 +524,11 @@ export class ProjectOverviewView {
         this.renderSelection(result.id, "attention");
       });
       cardTitle.dataset.resultId = result.id;
+      const cardHeading = el("div", "overview-result-card-heading");
+      cardHeading.append(cardTitle);
+      if (result.certificate) {
+        cardHeading.append(createLeanCertificateBadge(result.certificate, () => void this.openResult(result)));
+      }
       const cardMeta = el("p", "overview-result-card-meta", `${DEPENDENCY_STATUS[result.validation].symbol} ${result.validation} · ${item.downstreamExposure} downstream`);
       const cardOwner = el("p", "overview-result-card-line");
       cardOwner.append(
@@ -519,7 +536,7 @@ export class ProjectOverviewView {
         button(result.ownerLabel, "overview-table-link", () => void this.openResult(result)),
       );
       card.append(
-        cardTitle,
+        cardHeading,
         cardMeta,
         cardOwner,
         el("p", "overview-result-card-condition", `Remaining · ${result.condition || "None recorded"}`),
@@ -587,6 +604,7 @@ export class ProjectOverviewView {
     );
     const messages = [
       ...(this.loaded?.errors ?? []),
+      ...(snapshot.certificateCatalog?.diagnostics ?? []),
       ...projectDiagnostics.map((item) => item.message),
       ...graphDiagnostics.map((item) => item.message),
     ];
@@ -599,7 +617,8 @@ export class ProjectOverviewView {
       + graphDiagnostics.filter((item) => item.severity === "error").length
       + (this.loaded?.errors.length ?? 0);
     const warnings = projectDiagnostics.filter((item) => item.severity === "warning").length
-      + graphDiagnostics.filter((item) => item.severity === "warning").length;
+      + graphDiagnostics.filter((item) => item.severity === "warning").length
+      + (snapshot.certificateCatalog?.diagnostics.length ?? 0);
     summary.textContent = `${errors} project error${errors === 1 ? "" : "s"} · ${warnings} warning${warnings === 1 ? "" : "s"}`;
     details.append(summary, this.diagnosticList(messages));
     section.append(details);

@@ -2816,6 +2816,134 @@ button.lib-group-head:focus-visible {
   cursor: pointer;
 }
 
+.overview-key-result-title-row,
+.overview-result-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.overview-key-result-title-row > :first-child,
+.overview-result-card-heading > :first-child { min-width: 0; }
+
+.lean-certificate-badge {
+  flex: none;
+  min-width: 1.55rem;
+  min-height: 1.35rem;
+  padding: 0.1rem 0.3rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--bg));
+  color: color-mix(in srgb, var(--accent) 78%, var(--fg));
+  font: 650 0.62rem/1.1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+}
+
+.lean-certificate-badge.coverage-partial {
+  border-style: dashed;
+  color: color-mix(in srgb, var(--accent) 60%, var(--fg));
+}
+
+.lean-certificate-badge:hover {
+  border-color: color-mix(in srgb, var(--accent) 65%, var(--border));
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
+}
+
+.lean-certificate-badge:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.lean-certificate-marker {
+  display: flex;
+  justify-content: flex-end;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+  transform: translateY(0.15rem);
+}
+
+.lean-certificate-marker .lean-certificate-badge { pointer-events: auto; }
+
+.lean-certificate-dialog {
+  width: min(38rem, calc(100vw - 2rem));
+  max-height: min(44rem, calc(100dvh - 2rem));
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: 0 1.25rem 4rem rgb(0 0 0 / 0.22);
+}
+
+.lean-certificate-dialog::backdrop { background: rgb(0 0 0 / 0.35); }
+
+.lean-certificate-dialog-header,
+.lean-certificate-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.lean-certificate-dialog-footer {
+  justify-content: flex-end;
+  border-top: 1px solid var(--border);
+  border-bottom: 0;
+}
+
+.lean-certificate-dialog-title { margin: 0; font: 650 0.92rem/1.2 var(--ui-font, system-ui); }
+.lean-certificate-dialog-lead { margin: 0; padding: 0.8rem 0.9rem 0.2rem; font-weight: 650; }
+.lean-certificate-coverage { margin: 0; padding: 0 0.9rem 0.75rem; color: var(--muted); font-size: 0.72rem; }
+.lean-certificate-dialog-body { max-height: min(31rem, calc(100dvh - 13rem)); overflow: auto; padding: 0 0.9rem 0.9rem; }
+.lean-certificate-section { margin-top: 0.8rem; }
+.lean-certificate-section.is-excluded { padding: 0.55rem 0.65rem; border-left: 2px solid color-mix(in srgb, var(--partial-fg) 65%, var(--border)); background: color-mix(in srgb, var(--partial-fg) 5%, var(--bg)); }
+.lean-certificate-section-title { margin: 0 0 0.3rem; font-size: 0.72rem; }
+.lean-certificate-list { margin: 0; padding-left: 1.1rem; color: color-mix(in srgb, var(--fg) 86%, var(--muted)); font-size: 0.72rem; }
+.lean-certificate-list-item + .lean-certificate-list-item { margin-top: 0.22rem; }
+.lean-certificate-metadata { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.25rem 0.65rem; margin: 1rem 0 0; font-size: 0.66rem; }
+.lean-certificate-metadata dt { color: var(--muted); }
+.lean-certificate-metadata dd { min-width: 0; margin: 0; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.lean-certificate-source { margin-top: 0.8rem; font-size: 0.68rem; }
+.lean-certificate-source summary { color: var(--accent); cursor: pointer; overflow-wrap: anywhere; }
+.lean-certificate-source pre { max-height: 15rem; margin: 0.55rem 0 0; padding: 0.65rem; overflow: auto; border: 1px solid var(--border); border-radius: 0.4rem; background: color-mix(in srgb, var(--fg) 3%, var(--bg)); color: var(--fg); font-size: 0.64rem; line-height: 1.45; white-space: pre; }
+.lean-certificate-dialog button:not(.lean-certificate-badge) { min-height: 2rem; padding: 0.35rem 0.6rem; border: 1px solid var(--border); border-radius: 0.35rem; background: var(--bg); color: var(--fg); font: inherit; }
+.lean-certificate-owner { color: var(--accent) !important; }
+
+.graph-node-certificate {
+  fill: color-mix(in srgb, var(--accent) 72%, var(--fg));
+  font: 650 9px ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.graph-node-certificate.coverage-partial { opacity: 0.78; }
+
+.lib-file-certificates {
+  flex: none;
+  color: color-mix(in srgb, var(--accent) 68%, var(--muted));
+  font: 650 0.58rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@media (max-width: 599px) {
+  .lean-certificate-dialog {
+    width: 100vw;
+    max-width: none;
+    max-height: min(82dvh, 44rem);
+    margin: auto 0 0;
+    border-width: 1px 0 0;
+    border-radius: 0.85rem 0.85rem 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .lean-certificate-dialog-body {
+    max-height: calc(82dvh - 11rem - env(safe-area-inset-bottom));
+  }
+}
+
 .overview-key-result-title:hover { color: var(--accent); }
 .overview-key-result-title:focus-visible {
   outline: 2px solid var(--accent);

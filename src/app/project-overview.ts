@@ -6,6 +6,7 @@ import {
 } from "../markdown/frontmatter";
 import { parseMarkdown } from "../markdown/parse";
 import type { ProjectPublicationConfig } from "../publication/project-publication";
+import type { LeanCertificateCatalog } from "./lean-certificates";
 import {
   downstreamOf,
   resultsForProject,
@@ -168,6 +169,8 @@ export interface ProjectCatalogSnapshot {
   tasksByProject: Map<string, ProjectTask[]>;
   documents: ProjectDocumentSummary[];
   dependencyCatalog: DependencyCatalog;
+  /** Optional, non-authoritative proof evidence derived from the support-only Lean map. */
+  certificateCatalog?: LeanCertificateCatalog;
   diagnostics: ProjectDiagnostic[];
 }
 

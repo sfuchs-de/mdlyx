@@ -142,8 +142,9 @@ export function normaliseLibraryPath(raw: string): string | null {
 
 const ASSET_EXTENSIONS = new Set([
   "bib", "png", "jpg", "jpeg", "gif", "webp", "svg", "pdf",
-  "tex", "sty", "cls", "bst",
+  "tex", "sty", "cls", "bst", "yaml", "yml", "json", "lean", "toml",
 ]);
+const FORMAL_EVIDENCE_EXTENSIONS = new Set(["yaml", "yml", "json", "lean", "toml"]);
 
 export function normaliseAssetPath(raw: string): string | null {
   const parts = raw.trim().split("/").map((part) => part.trim()).filter(Boolean);
@@ -153,7 +154,9 @@ export function normaliseAssetPath(raw: string): string | null {
     || parts.some((part) => part === "." || part === ".." || part.startsWith(".") || part.includes("\\"))
   ) return null;
   const extension = parts.at(-1)?.split(".").at(-1)?.toLowerCase();
-  return extension && ASSET_EXTENSIONS.has(extension) ? parts.join("/") : null;
+  if (!extension || !ASSET_EXTENSIONS.has(extension)) return null;
+  if (FORMAL_EVIDENCE_EXTENSIONS.has(extension) && parts[0] !== "formal") return null;
+  return parts.join("/");
 }
 
 const UPDATER_PLATFORMS = new Map([

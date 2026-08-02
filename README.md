@@ -33,6 +33,11 @@ enable GitHub synchronization.
 All four paths use the same Markdown files. Start with the demo or desktop
 application; add a server only when you actually need remote synchronization.
 
+The [Releases page](https://github.com/sfuchs-de/mdlyx/releases) provides a
+universal macOS development DMG for people who do not want to compile locally.
+It is ad-hoc signed and not notarized, so macOS may require explicit approval.
+The public build has no shared updater or managed synchronization service.
+
 ## Create a research library
 
 Requirements: Node.js 22 and npm 11.
@@ -92,6 +97,8 @@ and [private GitHub synchronization](docs/GITHUB_SYNC.md).
 - Browser-folder and native-folder libraries with nested paths.
 - Project overviews, reading paths, task tables, key results, and dependency
   graphs generated from Markdown.
+- Optional, integrity-checked Lean certificate evidence attached to registered
+  results, with explicit certified and excluded scope.
 - BibTeX catalogs, Pandoc citations, and BibLaTeX-aware TeX export.
 - Anchored comments and project-scoped coauthor roles in self-hosted sync mode.
 - Dark mode, responsive phone layouts, keyboard navigation, and accessible

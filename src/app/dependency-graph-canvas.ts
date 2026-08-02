@@ -6,6 +6,7 @@ import {
   type ResultNode,
   type ValidationState,
 } from "./dependency-graph";
+import { leanCertificateBadgeText } from "./lean-certificates";
 
 export type DependencyGraphCanvasMode = "full" | "compact";
 
@@ -154,7 +155,9 @@ export class DependencyGraphCanvas {
       node.setAttribute("aria-pressed", String(result.id === selectedId));
       node.setAttribute(
         "aria-label",
-        `${result.id}, ${result.title}, ${result.validation}, owner ${result.ownerLabel}`,
+        `${result.id}, ${result.title}, ${result.validation}, owner ${result.ownerLabel}${
+          result.certificate ? `, Lean kernel checked with ${result.certificate.coverage} coverage` : ""
+        }`,
       );
       if (result.project !== options.project) node.classList.add("is-external");
       if (result.id === selectedId) node.classList.add("is-selected");
@@ -167,6 +170,16 @@ export class DependencyGraphCanvas {
       box.setAttribute("rx", "5");
       node.append(box);
       addText(node, result.id, 12, 19, "graph-node-id");
+      if (result.certificate) {
+        addText(
+          node,
+          leanCertificateBadgeText(result.certificate),
+          nodeWidth - 10,
+          19,
+          `graph-node-certificate coverage-${result.certificate.coverage}`,
+          "end",
+        );
+      }
       wrapTitle(result.title, mode === "compact" ? 25 : 30).forEach((line, index) => {
         addText(node, line, 12, 39 + index * 15, "graph-node-title");
       });

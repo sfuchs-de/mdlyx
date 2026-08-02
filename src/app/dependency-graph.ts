@@ -1,6 +1,7 @@
 import type { Node as PMNode } from "prosemirror-model";
 import { parseFrontmatter } from "../markdown/frontmatter";
 import { parseMarkdown } from "../markdown/parse";
+import type { LeanCertificateEvidence } from "./lean-certificates";
 
 export const VALIDATION_STATES = [
   "validated",
@@ -30,6 +31,8 @@ export interface ResultNode {
   manifestDocumentId: string;
   manifestPath: string;
   row: number;
+  /** Present only after the governed map, pinned files, result, and owner all validate. */
+  certificate?: LeanCertificateEvidence;
 }
 
 /**
