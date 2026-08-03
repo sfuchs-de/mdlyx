@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
 import type { Config } from "./config.js";
 import { GitHubError, type GitHubLibraryApi } from "./github.js";
+import type { InviteStore } from "./invite-store.js";
 import type { PendingDeviceStore } from "./pending-device-store.js";
 
 const servers: ReturnType<typeof createServer>[] = [];
@@ -41,6 +42,7 @@ async function start(
   overrides: Record<string, unknown> = {},
   appConfig = config,
   pendingDevices?: PendingDeviceStore,
+  invites?: InviteStore,
 ) {
   const github = {
     oauthUser: async () => ({ login: "example-owner" }),
@@ -51,6 +53,7 @@ async function start(
     github,
     { version: "0.3.0", revision: "abcdef123456" },
     pendingDevices,
+    invites,
   ));
   servers.push(server);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -194,6 +197,50 @@ describe("GitHub OAuth callback relay", () => {
     await expect(ready.json()).resolves.toMatchObject({
       ready: false,
       pendingDeviceStoreReady: false,
+    });
+  });
+
+  it("probes both durable stores concurrently within the Render health window", async () => {
+    let resolveDevices!: (ready: boolean) => void;
+    let resolveInvites!: (ready: boolean) => void;
+    let deviceChecks = 0;
+    let inviteChecks = 0;
+    const pendingDevices: PendingDeviceStore = {
+      mode: "redis",
+      set: async () => {},
+      get: async () => null,
+      delete: async () => {},
+      checkReady: () => {
+        deviceChecks++;
+        return new Promise<boolean>((resolve) => { resolveDevices = resolve; });
+      },
+    };
+    const invites: InviteStore = {
+      mode: "redis",
+      put: async () => {},
+      consume: async () => null,
+      revoke: async () => false,
+      revokePrincipal: async () => 0,
+      list: async () => [],
+      checkReady: () => {
+        inviteChecks++;
+        return new Promise<boolean>((resolve) => { resolveInvites = resolve; });
+      },
+    };
+    const base = await start({}, config, pendingDevices, invites);
+    const response = fetch(`${base}/ready`, { headers: { origin: config.appOrigin } });
+
+    await expect.poll(() => deviceChecks).toBe(1);
+    await expect.poll(() => inviteChecks).toBe(1);
+    resolveDevices(true);
+    resolveInvites(false);
+
+    const ready = await response;
+    expect(ready.status).toBe(503);
+    await expect(ready.json()).resolves.toMatchObject({
+      ready: false,
+      pendingDeviceStoreReady: true,
+      inviteStoreReady: false,
     });
   });
 

@@ -853,6 +853,62 @@ test("appearance supports persistent light, dark, and system themes", async ({ p
   await expect(page.locator(".ProseMirror")).toHaveCSS("background-color", "rgb(255, 255, 255)");
 });
 
+test("math objects remain visible while editing in the explicit dark theme", async ({ page }) => {
+  await page.getByRole("button", { name: "Settings" }).click();
+  const settings = page.getByRole("dialog", { name: "Settings" });
+  await settings.getByRole("tab", { name: "Editor" }).click();
+  await settings.getByRole("button", { name: "Theme: Dark" }).click();
+  await settings.getByRole("button", { name: "Close settings" }).click();
+
+  await page.evaluate(() => {
+    (window as unknown as { __setEditMode: (mode: string) => void })
+      .__setEditMode("elements");
+    (window as unknown as { __load: (markdown: string) => void })
+      .__load("An inline object $a+b$ stays visible.\n");
+  });
+  await page.locator(".math-inline").click();
+  const inlineInput = page.locator(".ime-input");
+  await expect(inlineInput).toHaveAttribute("data-editor-state", "ready");
+  const inlineStyle = await inlineInput.evaluate((input) => {
+    const active = input.getAttribute("data-active-leaf");
+    const leaf = input.parentElement?.querySelector<HTMLElement>(
+      `[data-math-leaf-index="${active}"]`,
+    );
+    return {
+      background: getComputedStyle(input).backgroundColor,
+      renderMode: input.getAttribute("data-render-mode"),
+      leafVisibility: leaf ? getComputedStyle(leaf).visibility : "missing",
+    };
+  });
+  expect(inlineStyle.renderMode).toBe("glyph");
+  expect(inlineStyle.leafVisibility).toBe("visible");
+  expect(inlineStyle.background).not.toBe("rgb(36, 36, 36)");
+
+  await page.locator(".ProseMirror p").click({ position: { x: 4, y: 8 } });
+  await page.evaluate(() => {
+    (window as unknown as { __setEditMode: (mode: string) => void })
+      .__setEditMode("mathlive");
+    (window as unknown as { __load: (markdown: string) => void })
+      .__load("$$\n\\frac{a}{b}+c\n$$\n");
+  });
+  await page.locator(".math-display").click();
+  const field = page.locator("math-field");
+  await expect(field).toBeVisible();
+
+  const selectedStyle = await field.evaluate((element) => {
+    const mathfield = element as HTMLElement & {
+      executeCommand(command: string): boolean;
+      shadowRoot: ShadowRoot;
+    };
+    mathfield.executeCommand("selectAll");
+    const selected = mathfield.shadowRoot.querySelector<HTMLElement>(".ML__selected");
+    if (!selected) throw new Error("MathLive did not render the selected atom");
+    return getComputedStyle(selected).color;
+  });
+
+  expect(selectedStyle).toBe("rgb(238, 234, 226)");
+});
+
 test("Writing guide is searchable, keyboard-accessible, and restores focus", async ({ page }) => {
   await reloadAtWidth(page, 920);
   const launcher = page.getByRole("button", { name: "Writing guide" });

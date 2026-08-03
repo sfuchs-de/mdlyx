@@ -5304,8 +5304,21 @@ math-field {
   border: none;
   padding: 0;
   background: transparent;
+  color: var(--ink);
   --caret-color: var(--accent);
+  /* MathLive otherwise chooses this foreground from the operating-system
+     colour scheme. That is wrong when the user selects MdLyx's dark theme on
+     a light-system desktop: selected atoms fall back to black and disappear
+     against our charcoal editing surface. Keep the field entirely driven by
+     the application's resolved theme. */
+  --selection-color: var(--ink);
   --selection-background-color: var(--math-editing);
+  --contains-highlight-color: var(--accent);
+  --contains-highlight-background-color: color-mix(
+    in srgb,
+    var(--accent) 16%,
+    transparent
+  );
   --smart-fence-color: var(--fg);
 }
 .math-inline math-field {
@@ -6909,13 +6922,13 @@ math-field {
   background: color-mix(in srgb, var(--accent) 42%, transparent);
 }
 
-:root[data-theme="dark"] :is(input, textarea, select) {
+:root[data-theme="dark"] :is(input:not(.ime-input), textarea, select) {
   border-color: var(--border);
   background-color: var(--surface-raised);
   color: var(--fg);
 }
 
-:root[data-theme="dark"] :is(input, textarea)::placeholder {
+:root[data-theme="dark"] :is(input:not(.ime-input), textarea)::placeholder {
   color: color-mix(in srgb, var(--muted) 82%, transparent);
 }
 

@@ -310,6 +310,8 @@ export function createApp(
   const inviteStoreReady = () => invites.isReady?.() ?? true;
   const checkPendingDeviceStoreReady = () => pendingDevices.checkReady?.()
     ?? Promise.resolve(pendingDeviceStoreReady());
+  const checkInviteStoreReady = () => invites.checkReady?.()
+    ?? Promise.resolve(inviteStoreReady());
 
   const resolveScope = async (req: IncomingMessage): Promise<{
     scope: AuthorizedLibraryScope;
@@ -403,8 +405,16 @@ export function createApp(
     }
     if (req.method === "GET" && url.pathname === "/ready") {
       const configured = isConfigured();
-      const deviceReady = await checkPendingDeviceStoreReady();
-      const inviteReady = await (invites.checkReady?.() ?? Promise.resolve(invites.isReady?.() ?? true));
+      // Both production stores use the same private Redis service, but retain
+      // separate clients. Probe them concurrently so one stalled connection
+      // cannot consume its full timeout before the second probe starts. Render
+      // allows five seconds for this endpoint; each store already bounds its
+      // own command at three seconds, so the parallel snapshot always has room
+      // to return a deliberate 503 instead of looking like a hung process.
+      const [deviceReady, inviteReady] = await Promise.all([
+        checkPendingDeviceStoreReady(),
+        checkInviteStoreReady(),
+      ]);
       const storeReady = deviceReady && inviteReady;
       const ready = configured && storeReady;
       sendJson(res, ready ? 200 : 503, {
