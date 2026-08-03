@@ -596,7 +596,7 @@ export function initConfig(
     syncSection.append(heading, repo, status);
     if (shared && snapshot.status.expiresAt) {
       syncSection.append(text(
-        `Session expires ${new Date(snapshot.status.expiresAt).toLocaleString()}`,
+        `Permanent access · renews through ${new Date(snapshot.status.expiresAt).toLocaleString()}`,
         "config-desc",
       ));
     }

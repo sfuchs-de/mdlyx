@@ -165,6 +165,18 @@ async function redeem(base: string, token: string): Promise<{ cookie: string; bo
   return { cookie, body: await response.json() as Record<string, unknown> };
 }
 
+function coauthorCookie(expiresAt: number): string {
+  const body = Buffer.from(JSON.stringify({
+    version: 2,
+    kind: "coauthor",
+    principalId: "alice",
+    authVersion: 1,
+    exp: expiresAt,
+  })).toString("base64url");
+  const signature = createHmac("sha256", config.sessionSecret).update(body).digest("base64url");
+  return `mathdown_library_session=${body}.${signature}`;
+}
+
 async function ownerCookie(base: string): Promise<string> {
   const begin = await fetch(`${base}/auth/github`, { redirect: "manual" });
   const destination = new URL(begin.headers.get("location") ?? "");
@@ -188,6 +200,27 @@ describe("shared-project API authorization", () => {
     });
     expect(rejected.status).toBe(400);
     await expect(redeem(base, token)).resolves.toMatchObject({ body: { authenticated: true } });
+  });
+
+  it("keeps approved project membership active with rolling, policy-checked browser sessions", async () => {
+    const { base } = await start("editor");
+    const now = Date.now();
+    const session = await fetch(`${base}/auth/session`, {
+      headers: { cookie: coauthorCookie(now + 60_000), origin: config.appOrigin },
+    });
+    expect(session.status).toBe(200);
+    const body = await session.json() as { authenticated: boolean; expiresAt: number };
+    expect(body.authenticated).toBe(true);
+    expect(body.expiresAt).toBeGreaterThan(now + 29 * 24 * 60 * 60 * 1000);
+    expect(session.headers.get("set-cookie")).toContain("Max-Age=2592000");
+
+    const renewedCookie = session.headers.get("set-cookie")?.split(";", 1)[0] ?? "";
+    configuration = policy("editor", 2);
+    const revoked = await fetch(`${base}/auth/session`, {
+      headers: { cookie: renewedCookie, origin: config.appOrigin },
+    });
+    expect(await revoked.json()).toEqual({ authenticated: false });
+    expect(revoked.headers.get("set-cookie")).toBeNull();
   });
 
   it("lets only the owner list, create, and revoke invitations", async () => {

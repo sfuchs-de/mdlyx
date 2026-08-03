@@ -97,7 +97,7 @@ export function initSharingSettings(
     panel.append(
       heading,
       paragraph(
-        "Add each person individually, choose exactly which projects they can use, and assign the least access they need. Changes are committed to the private library access policy.",
+        "Grant individual project access. Rights remain until revoked; active sessions renew after policy checks.",
         "config-desc",
       ),
     );

@@ -40,6 +40,8 @@ const STATE_COOKIE = "mathdown_library_oauth";
 const DEVICE_COOKIE = "mathdown_library_device";
 const UPDATER_CLIENT_IDLE_MS = 30_000;
 const UPDATER_CLIENT_TOTAL_MS = 10 * 60_000;
+const COAUTHOR_SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
+const COAUTHOR_SESSION_MAX_AGE_MS = COAUTHOR_SESSION_MAX_AGE_SECONDS * 1000;
 
 interface LegacySession {
   login: string;
@@ -141,7 +143,7 @@ function coauthorSession(principalId: string, authVersion: number, config: Confi
     kind: "coauthor",
     principalId,
     authVersion,
-    exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
+    exp: Date.now() + COAUTHOR_SESSION_MAX_AGE_MS,
   }, config.sessionSecret);
 }
 
@@ -424,7 +426,27 @@ export function createApp(
     try {
       if (req.method === "GET" && url.pathname === "/auth/session") {
         const resolved = await resolveScope(req);
-        sendJson(res, 200, resolved ? publicSession(resolved.scope, resolved.session) : { authenticated: false });
+        if (!resolved) {
+          sendJson(res, 200, { authenticated: false });
+          return;
+        }
+        if (resolved.scope.kind === "coauthor") {
+          // Project membership is permanent until the owner changes or removes
+          // it. Rotate the signed browser credential whenever the hosted app
+          // revalidates the current policy, giving active collaborators a
+          // rolling session without creating an unrevocable bearer token.
+          const credential = coauthorSession(
+            resolved.scope.principalId,
+            resolved.scope.authVersion,
+            config,
+          );
+          const session = verified<CoauthorSession>(credential, config.sessionSecret) as CoauthorSession;
+          sendJson(res, 200, publicSession(resolved.scope, session), {
+            "set-cookie": cookie(SESSION_COOKIE, credential, COAUTHOR_SESSION_MAX_AGE_SECONDS),
+          });
+          return;
+        }
+        sendJson(res, 200, publicSession(resolved.scope, resolved.session));
         return;
       }
       if (req.method === "POST" && url.pathname === "/auth/invite/redeem") {
@@ -466,7 +488,7 @@ export function createApp(
         if (!scope) throw new GitHubError(503, "Shared access is temporarily unavailable");
         sendJson(res, 200, publicSession(scope, session), {
           "set-cookie": [
-            cookie(SESSION_COOKIE, credential, 30 * 24 * 60 * 60),
+            cookie(SESSION_COOKIE, credential, COAUTHOR_SESSION_MAX_AGE_SECONDS),
             cookie(STATE_COOKIE, "", 0),
             cookie(DEVICE_COOKIE, "", 0),
           ],
