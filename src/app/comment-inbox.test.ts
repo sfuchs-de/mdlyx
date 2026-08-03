@@ -168,4 +168,26 @@ describe("CommentInbox", () => {
     expect(launcher.disabled).toBe(false);
     expect(launcher.getAttribute("aria-label")).toContain("no new activity");
   });
+
+  it("always opens with a recoverable state when initial provider context fails", async () => {
+    const launcher = document.createElement("button");
+    launcher.disabled = true;
+    document.body.append(launcher);
+    const inbox = new CommentInbox(launcher, {
+      context: () => { throw new Error("provider restarting"); },
+      sources: () => [],
+      open: async () => false,
+      refreshLibrary: async () => false,
+      usesGitHub: () => true,
+    }, new MemoryPersistenceStore());
+
+    expect(launcher.disabled).toBe(false);
+    launcher.click();
+    expect(document.querySelector<HTMLElement>("#comment-inbox")?.hidden).toBe(false);
+    expect(document.querySelector(".comment-inbox-status")?.textContent).toContain("Preparing");
+
+    await expect(inbox.initialize()).resolves.toBeUndefined();
+    expect(launcher.disabled).toBe(false);
+    expect(document.querySelector(".comment-inbox-status")?.textContent).toContain("temporarily unavailable");
+  });
 });

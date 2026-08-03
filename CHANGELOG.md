@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.5 — 2026-08-03
+
+- Kept the Comment Inbox available while its first library scan is pending or
+  recovering, with explicit preparing and retryable failure states.
+- Resolved project-relative bibliography declarations against their project
+  overview directory while preserving repository-relative paths.
+- Prevented valid project saves from being followed by misleading missing-asset
+  failures in self-hosted sync deployments.
+
 ## 0.1.4 — 2026-08-03
 
 - Kept LyX-style element overlays and full MathLive selections visible when

@@ -36,11 +36,24 @@ describe("project publication inheritance", () => {
     const frontmatter = emptyFrontmatter();
     frontmatter.library.projects = ["sample-model"];
     const effective = resolveEffectivePublication(frontmatter, [
+      config("sample-model", ["references/library.bib"]),
+    ]);
+    expect(effective.bibliography).toEqual(["projects/sample-model/references/library.bib"]);
+    expect(effective.bibliographySources).toEqual([{
+      project: "sample-model",
+      path: "projects/sample-model/references/library.bib",
+    }]);
+    expect(effective.overriddenFields).toEqual([]);
+    expect(effective.inheritedFields).toContain("citationStyle");
+  });
+
+  it("does not prefix an already repository-relative project bibliography", () => {
+    const frontmatter = emptyFrontmatter();
+    frontmatter.library.projects = ["sample-model"];
+    const effective = resolveEffectivePublication(frontmatter, [
       config("sample-model", ["projects/sample-model/references/library.bib"]),
     ]);
     expect(effective.bibliography).toEqual(["projects/sample-model/references/library.bib"]);
-    expect(effective.overriddenFields).toEqual([]);
-    expect(effective.inheritedFields).toContain("citationStyle");
   });
 
   it("applies explicit fields independently and treats bibliography: [] as disabling inheritance", () => {
