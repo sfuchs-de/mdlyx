@@ -25,11 +25,11 @@ function source(
   comments: () => StoredComment[],
 ): CommentInboxSource {
   return {
-    path: "projects/continuum/derivation.md",
-    documentId: "continuum-derivation",
-    documentTitle: "Continuum derivation",
-    projects: ["continuum-model"],
-    projectLabels: ["Continuum"],
+    path: "projects/sample-project/derivation.md",
+    documentId: "sample-derivation",
+    documentTitle: "Sample derivation",
+    projects: ["sample-project"],
+    projectLabels: ["Sample project"],
     digest,
     read: async () => comments(),
   };
@@ -48,7 +48,7 @@ describe("CommentInbox", () => {
     let comments = [comment()];
     const open = vi.fn(async () => true);
     const inbox = new CommentInbox(launcher, {
-      context: () => ({ providerIdentity: "github:test/library", revision: digest, principalKey: "owner:simon" }),
+      context: () => ({ providerIdentity: "github:test/library", revision: digest, principalKey: "owner:researcher" }),
       sources: () => [source(digest, () => comments)],
       open,
       refreshLibrary: async () => true,
@@ -69,8 +69,8 @@ describe("CommentInbox", () => {
     comments = [comment({
       replies: [{
         kind: "user",
-        author: "Treb",
-        principalId: "treb-allen",
+        author: "Coauthor",
+        principalId: "coauthor-one",
         body: "I added a qualification",
         createdAt: 1_700_000_100_000,
       }],
@@ -82,11 +82,11 @@ describe("CommentInbox", () => {
     launcher.click();
     const item = document.querySelector<HTMLButtonElement>(".comment-inbox-open");
     expect(item?.textContent).toContain("New reply");
-    expect(item?.textContent).toContain("Treb");
-    expect(item?.textContent).toContain("Continuum derivation");
+    expect(item?.textContent).toContain("Coauthor");
+    expect(item?.textContent).toContain("Sample derivation");
     item?.click();
     await vi.waitFor(() => expect(open).toHaveBeenCalledWith(
-      "projects/continuum/derivation.md",
+      "projects/sample-project/derivation.md",
       "c1",
     ));
     await vi.waitFor(() => expect(launcher.getAttribute("aria-label")).toContain("no new activity"));

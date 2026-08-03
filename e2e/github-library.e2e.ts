@@ -556,7 +556,7 @@ test("comment inbox reports a remote reply and opens its anchored thread", async
   const stored = {
     id: "inbox-thread",
     kind: "user",
-    author: "sfuchs",
+    author: "Researcher",
     body: "Please review this statement",
     resolved: false,
     createdAt: 1_700_000_000_000,
@@ -565,7 +565,7 @@ test("comment inbox reports a remote reply and opens its anchored thread", async
   };
   const source = (comment: typeof stored) => [
     "---",
-    'library: {"id":"remote-1","title":"Remote intro","projects":["continuum-model"]}',
+    'library: {"id":"remote-1","title":"Remote intro","projects":["sample-project"]}',
     `comments: ${JSON.stringify([comment])}`,
     "---",
     "",
@@ -577,8 +577,8 @@ test("comment inbox reports a remote reply and opens its anchored thread", async
 
   stored.replies = [{
     kind: "user",
-    author: "Treb Allen",
-    principalId: "treb-allen",
+    author: "Coauthor",
+    principalId: "coauthor-one",
     body: "I added a qualification",
     createdAt: 1_700_000_100_000,
   }];
@@ -594,7 +594,7 @@ test("comment inbox reports a remote reply and opens its anchored thread", async
   const inbox = page.getByRole("dialog", { name: "Comment inbox" });
   await expect(inbox).toHaveAttribute("data-panel-layout", "sheet");
   await expect(inbox).toContainText("New reply");
-  await expect(inbox).toContainText("Treb Allen");
+  await expect(inbox).toContainText("Coauthor");
   await expect(inbox).toContainText("Remote intro");
   await inbox.locator(".comment-inbox-open").click();
   await expect(page.locator(".ProseMirror .comment")).toHaveText("Remote");
