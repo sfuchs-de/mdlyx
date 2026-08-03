@@ -1085,7 +1085,8 @@ body.mobile-sheet-open {
 #table-tools,
 #scholarly-tools,
 #project-search,
-#writing-guide {
+#writing-guide,
+#comment-inbox {
   position: fixed;
   z-index: 80;
   width: min(22rem, calc(100vw - 1rem));
@@ -1115,6 +1116,199 @@ body.mobile-sheet-open {
 #scholarly-tools.is-bibliography { width: min(50rem, calc(100vw - 1rem)); }
 #project-search { width: min(30rem, calc(100vw - 1rem)); }
 #writing-guide { width: min(40rem, calc(100vw - 1rem)); }
+#comment-inbox { width: min(29rem, calc(100vw - 1rem)); }
+
+.comment-inbox-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  margin-bottom: 0.55rem;
+}
+
+.comment-inbox-header h2 {
+  margin: 0;
+  color: var(--fg);
+  font-size: var(--ui-title-size);
+  line-height: 1.25;
+}
+
+.comment-inbox-check,
+.comment-inbox-mark-all,
+.comment-inbox-item footer button {
+  min-height: 1.75rem;
+  padding: 0.25rem 0.48rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--fg);
+  cursor: pointer;
+  font: 500 var(--ui-meta-size)/1.2 system-ui, sans-serif;
+}
+
+.comment-inbox-check::before {
+  content: "↻";
+  margin-right: 0.25rem;
+}
+
+.comment-inbox-check:disabled { cursor: progress; opacity: 0.55; }
+
+.comment-inbox-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-subtle);
+}
+
+.comment-inbox-tabs button {
+  min-height: 1.85rem;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: 560 var(--ui-meta-size)/1.2 system-ui, sans-serif;
+}
+
+.comment-inbox-tabs button[aria-selected="true"] {
+  background: var(--surface-raised);
+  color: var(--fg);
+  box-shadow: 0 1px 3px var(--shadow);
+}
+
+.comment-inbox-status,
+.comment-inbox-empty {
+  margin: 0;
+  padding: 0.55rem 0.15rem;
+  color: var(--muted);
+  font-size: var(--ui-meta-size);
+  line-height: 1.35;
+}
+
+.comment-inbox-list {
+  display: flex;
+  flex-direction: column;
+  max-height: min(32rem, calc(100dvh - 13rem));
+  overflow: auto;
+}
+
+.comment-inbox-mark-all {
+  align-self: flex-end;
+  margin: 0 0 0.35rem;
+  border-color: transparent;
+  color: var(--accent);
+}
+
+.comment-inbox-item {
+  position: relative;
+  border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+.comment-inbox-item.is-unread::before {
+  position: absolute;
+  top: 0.75rem;
+  left: 0;
+  width: 0.34rem;
+  height: 0.34rem;
+  border-radius: 50%;
+  background: var(--accent);
+  content: "";
+}
+
+.comment-inbox-open {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 0.65rem 0.25rem 0.42rem 0.8rem;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  text-align: left;
+  cursor: pointer;
+}
+
+.comment-inbox-open:hover,
+.comment-inbox-open:focus-visible {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+.comment-inbox-item-heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.38rem;
+  min-width: 0;
+  font-size: var(--ui-body-size);
+}
+
+.comment-inbox-item-heading strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.comment-inbox-activity {
+  color: var(--accent);
+  font-size: var(--ui-label-size);
+  font-weight: 700;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+.comment-inbox-item-heading time,
+.comment-inbox-context,
+.comment-inbox-quote,
+.comment-inbox-item footer {
+  color: var(--muted);
+  font-size: var(--ui-meta-size);
+}
+
+.comment-inbox-context,
+.comment-inbox-body,
+.comment-inbox-quote {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.comment-inbox-context { white-space: nowrap; }
+.comment-inbox-body { font-size: var(--ui-body-size); line-height: 1.35; }
+.comment-inbox-quote { white-space: nowrap; font-style: italic; }
+
+.comment-inbox-item footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 1.9rem;
+  padding: 0 0.25rem 0.42rem 0.8rem;
+}
+
+.comment-inbox-item footer button {
+  min-height: 1.55rem;
+  padding-block: 0.15rem;
+  border-color: transparent;
+  color: var(--muted);
+}
+
+.toolbar-activity-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 0.92rem;
+  height: 0.92rem;
+  padding: 0 0.2rem;
+  border: 1.5px solid var(--bg);
+  border-radius: 999px;
+  background: var(--accent);
+  color: white;
+  font: 700 0.55rem/0.78rem system-ui, sans-serif;
+  text-align: center;
+}
+
+#toolbar #btn-inbox { position: relative; }
 
 .writing-guide {
   display: flex;
@@ -3911,6 +4105,7 @@ button.lib-group-head:focus-visible {
   #scholarly-tools,
   #project-search,
   #writing-guide,
+  #comment-inbox,
   #doc-inspector,
   #config-panel {
     width: auto;
@@ -4023,6 +4218,20 @@ button.lib-group-head:focus-visible {
     opacity: 0;
     overflow: hidden;
     pointer-events: none;
+  }
+  .comment-inbox-list {
+    max-height: min(65dvh, 36rem);
+    padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
+  }
+  .comment-inbox-check,
+  .comment-inbox-tabs button,
+  .comment-inbox-mark-all,
+  .comment-inbox-item footer button {
+    min-height: 2.75rem;
+  }
+  .comment-inbox-open {
+    min-height: 4.25rem;
+    padding-block: 0.72rem 0.48rem;
   }
   #tab-bar.tab-bar {
     display: block;

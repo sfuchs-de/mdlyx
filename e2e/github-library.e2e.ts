@@ -552,6 +552,56 @@ test("Pull refreshes the opened tab from GitHub", async ({ page }) => {
   await expect.poll(async () => page.evaluate(() => (window as any).__serialize())).toContain("Changed on GitHub.");
 });
 
+test("comment inbox reports a remote reply and opens its anchored thread", async ({ page }) => {
+  const stored = {
+    id: "inbox-thread",
+    kind: "user",
+    author: "sfuchs",
+    body: "Please review this statement",
+    resolved: false,
+    createdAt: 1_700_000_000_000,
+    replies: [] as Array<Record<string, unknown>>,
+    quote: "Remote",
+  };
+  const source = (comment: typeof stored) => [
+    "---",
+    'library: {"id":"remote-1","title":"Remote intro","projects":["continuum-model"]}',
+    `comments: ${JSON.stringify([comment])}`,
+    "---",
+    "",
+    "Remote note.",
+    "",
+  ].join("\n");
+  const api = await configureGitHubMock(page, false, [{ path: PATH, text: source(stored), sha: "sha-1" }]);
+  await expect(page.getByRole("button", { name: /Comment inbox, no new activity/ })).toBeEnabled();
+
+  stored.replies = [{
+    kind: "user",
+    author: "Treb Allen",
+    principalId: "treb-allen",
+    body: "I added a qualification",
+    createdAt: 1_700_000_100_000,
+  }];
+  api.setRemote(source(stored), "sha-2");
+  await runLibraryAction(page, "Pull latest from GitHub");
+
+  await page.setViewportSize({ width: 390, height: 720 });
+  const closeLibrary = page.locator("#library").getByRole("button", { name: "Close library" });
+  if (await closeLibrary.isVisible()) await closeLibrary.click();
+  const launcher = page.getByRole("button", { name: /Comment inbox, 1 new activity/ });
+  await expect(launcher).toBeVisible();
+  await launcher.click();
+  const inbox = page.getByRole("dialog", { name: "Comment inbox" });
+  await expect(inbox).toHaveAttribute("data-panel-layout", "sheet");
+  await expect(inbox).toContainText("New reply");
+  await expect(inbox).toContainText("Treb Allen");
+  await expect(inbox).toContainText("Remote intro");
+  await inbox.locator(".comment-inbox-open").click();
+  await expect(page.locator(".ProseMirror .comment")).toHaveText("Remote");
+  await expect(page.locator(".comment-card.is-active")).toContainText("I added a qualification");
+  await expect(page.getByRole("button", { name: /Comment inbox, no new activity/ })).toBeVisible();
+});
+
 test("GitHub comments commit serialized metadata and advance the document SHA", async ({ page }) => {
   const api = await configureGitHubMock(page);
   await openRemoteDoc(page);

@@ -47,6 +47,7 @@ import type {
   LibraryAsset,
   LibraryAssetWrite,
 } from "./library-assets";
+import type { StoredComment } from "../editor/comments";
 import {
   MAX_SEARCH_DOCUMENTS,
   MAX_SEARCH_DOCUMENT_CHARS,
@@ -143,6 +144,16 @@ export interface LibraryActivitySnapshot {
   dirty: boolean;
   lastSavedAt: number | null;
   lastPull: LibraryPullActivity;
+}
+
+export interface CommentInboxSource {
+  path: string;
+  documentId?: string;
+  documentTitle: string;
+  projects: string[];
+  projectLabels: string[];
+  digest: string;
+  read: () => Promise<StoredComment[]>;
 }
 
 interface LibraryMenuAction {
@@ -468,11 +479,48 @@ export class LibraryView {
     return this.activePath;
   }
 
+  documentPathForId(documentId: string | undefined): string | null {
+    if (!documentId) return null;
+    const entry = this.entries.find((candidate) => candidate.meta.id === documentId);
+    return entry ? entryPath(entry) : null;
+  }
+
   catalogIdentity(): { providerIdentity: string; revision: string } {
     return {
       providerIdentity: this.currentProviderIdentity(),
       revision: this.indexSnapshot?.revision ?? this.projectSearchRevision(),
     };
+  }
+
+  /**
+   * Lightweight comment-bearing documents for the activity inbox. The index
+   * digest avoids opening unchanged files; a source body is read only after its
+   * persisted comments have actually changed.
+   */
+  commentInboxSources(): CommentInboxSource[] {
+    const projectLabels = new Map<string, string>();
+    for (const entry of this.entries) {
+      for (const project of entry.meta.projects) {
+        if (!projectLabels.has(project)) projectLabels.set(project, this.projectLabel(project));
+      }
+    }
+    return this.entries.flatMap((entry) => {
+      const path = entryPath(entry);
+      const digest = entry.commentActivityDigest
+        ?? (entry.openCommentCount > 0
+          ? `legacy:${isGitHubFileRef(entry.handle) ? entry.handle.sha : path}:${entry.openCommentCount}`
+          : undefined);
+      if (!digest) return [];
+      return [{
+        path,
+        documentId: entry.meta.id,
+        documentTitle: docTitle(entry.meta, entry.name),
+        projects: [...entry.meta.projects],
+        projectLabels: entry.meta.projects.map((project) => projectLabels.get(project) ?? project),
+        digest,
+        read: async () => parseFrontmatter(await this.readCatalogSource(entry)).frontmatter.comments,
+      }];
+    });
   }
 
   canEditProjectAssets(projects: readonly string[]): boolean {
@@ -562,6 +610,7 @@ export class LibraryView {
     count: number,
     meta?: DocMeta,
     handle?: FileRef,
+    commentDigest?: string,
   ): void {
     const ref = handle ?? null;
     const entry = isGitHubFileRef(ref)
@@ -571,6 +620,7 @@ export class LibraryView {
     if (meta) entry.meta = meta;
     if (isGitHubFileRef(ref)) entry.handle = ref;
     entry.openCommentCount = Math.max(0, count);
+    entry.commentActivityDigest = commentDigest;
     this.commitInMemorySnapshot("metadata");
     if (this.visible) this.renderList();
     else this.renderDirty = true;
@@ -2771,6 +2821,7 @@ function indexSignature(entries: LibraryFile[]): string {
       path: entryPath(entry),
       meta: entry.meta,
       comments: entry.openCommentCount,
+      commentActivity: entry.commentActivityDigest ?? null,
       sha: isGitHubFileRef(entry.handle) ? entry.handle.sha : null,
     }))
     .join("\n");

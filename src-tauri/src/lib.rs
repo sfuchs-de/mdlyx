@@ -32,6 +32,8 @@ struct NativeLibraryEntry {
     path: String,
     meta: Value,
     open_comment_count: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    comment_activity_digest: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -95,6 +97,8 @@ struct GrantedLibraryEntry {
     identity: String,
     meta: Value,
     open_comment_count: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    comment_activity_digest: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -844,6 +848,7 @@ enum IndexField {
 struct NativeIndex {
     meta: Value,
     open_comment_count: usize,
+    comment_activity_digest: Option<String>,
 }
 
 fn empty_meta_value() -> Value {
@@ -859,6 +864,7 @@ impl Default for NativeIndex {
         Self {
             meta: empty_meta_value(),
             open_comment_count: 0,
+            comment_activity_digest: None,
         }
     }
 }
@@ -1131,6 +1137,13 @@ impl FrontmatterIndexScanner {
                         if let Some(count) = unresolved_comment_count(&value) {
                             self.index.open_comment_count = count;
                         }
+                        if value
+                            .as_array()
+                            .is_some_and(|comments| !comments.is_empty())
+                        {
+                            self.index.comment_activity_digest =
+                                Some(format!("sha256:{}", content_sha(&self.capture_bytes)));
+                        }
                     }
                 }
             }
@@ -1231,6 +1244,7 @@ fn collect_library(
                 path: canonical.to_string_lossy().into_owned(),
                 meta: index.meta,
                 open_comment_count: index.open_comment_count,
+                comment_activity_digest: index.comment_activity_digest,
             });
         }
     }
@@ -1495,6 +1509,7 @@ fn native_list_library(
                 identity,
                 meta: entry.meta,
                 open_comment_count: entry.open_comment_count,
+                comment_activity_digest: entry.comment_activity_digest,
             })
         })
         .collect()
@@ -2085,6 +2100,10 @@ mod tests {
         assert_eq!(index.meta["visibility"], "support");
         assert_eq!(index.meta["projects"][0], "test");
         assert_eq!(index.open_comment_count, 1);
+        assert!(index
+            .comment_activity_digest
+            .as_deref()
+            .is_some_and(|digest| digest.starts_with("sha256:")));
         assert!(serde_json::to_vec(&index.meta).unwrap().len() < 256);
     }
 

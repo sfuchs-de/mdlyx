@@ -194,7 +194,7 @@ export const WRITING_GUIDE_SECTIONS: readonly WritingGuideSection[] = [
       },
       {
         title: "Comments and review",
-        description: "Select text to add an anchored comment. Use the Comments panel to review, reply, resolve, or reopen comment threads.",
+        description: "Select text to add an anchored comment. Comments reviews the active document; Comment inbox collects new replies and unresolved threads across the current library after Pull or Refresh.",
         keywords: ["annotation", "coauthor", "track changes"],
       },
       {

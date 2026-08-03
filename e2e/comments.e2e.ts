@@ -169,6 +169,50 @@ test("phone review sheet navigates a long document with twenty comments", async 
   await expect(sheet.locator(".comment-card.is-active")).toContainText("Review item 14");
 });
 
+test("local-folder comment inbox notices a changed thread without rescanning unchanged bodies", async ({ page }) => {
+  const stored = {
+    id: "local-inbox",
+    kind: "user",
+    author: "Alice",
+    body: "Review the local argument",
+    resolved: false,
+    createdAt: 1_700_000_000_000,
+    replies: [] as Array<Record<string, unknown>>,
+    quote: "Local target",
+  };
+  const source = () => [
+    "---",
+    'library: {"id":"local-inbox-note","title":"Local inbox note","projects":["local-project"]}',
+    `comments: ${JSON.stringify([stored])}`,
+    "---",
+    "",
+    "Local target appears here.",
+    "",
+  ].join("\n");
+  await page.route("**/inbox-fixture/note.md", (route) => route.fulfill({
+    contentType: "text/markdown",
+    body: source(),
+  }));
+  await page.evaluate(() => (window as any).__mockLibrary("inbox-fixture", ["note.md"]));
+
+  const launcher = page.getByRole("button", { name: /Comment inbox, 1 new activity/ });
+  await expect(launcher).toBeVisible();
+  await launcher.click();
+  const inbox = page.getByRole("dialog", { name: "Comment inbox" });
+  await inbox.getByRole("button", { name: "Mark all read" }).click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: /Comment inbox, no new activity/ })).toBeVisible();
+
+  stored.replies = [{
+    kind: "user",
+    author: "Bob",
+    body: "A local reply",
+    createdAt: 1_700_000_100_000,
+  }];
+  await page.evaluate(() => (window as any).__mockLibrary("inbox-fixture", ["note.md"]));
+  await expect(page.getByRole("button", { name: /Comment inbox, 1 new activity/ })).toBeVisible();
+});
+
 test("add a note via the composer → margin card anchored to the text", async ({
   page,
 }) => {

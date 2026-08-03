@@ -7,7 +7,14 @@ import {
   type NativeFileRef,
   type OpenedFile,
 } from "./file-adapter";
-import { countUnresolvedComments, parseFrontmatter, emptyMeta, normalizeMeta, type DocMeta } from "../markdown/frontmatter";
+import {
+  commentActivityDigest,
+  countUnresolvedComments,
+  parseFrontmatter,
+  emptyMeta,
+  normalizeMeta,
+  type DocMeta,
+} from "../markdown/frontmatter";
 import { isTauriRuntime, tauriInvoke } from "./tauri-bridge";
 import {
   libraryAssetMimeType,
@@ -56,6 +63,8 @@ export interface LibraryFile {
   meta: DocMeta;
   /** Comments which have not been explicitly resolved in document frontmatter. */
   openCommentCount: number;
+  /** Changes for comments, replies, edits, resolution, and reopening. */
+  commentActivityDigest?: string;
 }
 
 // --- tiny IndexedDB key/value (handles are structured-cloneable) -----------
@@ -71,6 +80,7 @@ interface NativeLibraryEntry {
   identity: string;
   meta: unknown;
   openCommentCount: number;
+  commentActivityDigest?: string;
 }
 
 interface NativeOpenedFile {
@@ -148,6 +158,7 @@ const MAX_RETAINED_INDEX_FIELD_CHARS = 8 * 1024 * 1024;
 interface IndexedFrontmatter {
   meta: DocMeta;
   openCommentCount: number;
+  commentActivityDigest?: string;
 }
 
 function indexFrontmatter(source: string): IndexedFrontmatter {
@@ -155,6 +166,7 @@ function indexFrontmatter(source: string): IndexedFrontmatter {
   return {
     meta: frontmatter.library,
     openCommentCount: countUnresolvedComments(frontmatter.comments),
+    commentActivityDigest: commentActivityDigest(frontmatter.comments),
   };
 }
 
@@ -526,6 +538,7 @@ export class Library implements LibraryAssetProvider {
         } satisfies NativeFileRef,
         meta: normalizeMeta(entry.meta),
         openCommentCount: entry.openCommentCount,
+        commentActivityDigest: entry.commentActivityDigest,
       }));
     }
     if (!this.dir || !(await this.ensurePermission())) return [];

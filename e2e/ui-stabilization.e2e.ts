@@ -713,7 +713,7 @@ test("200% zoom equivalent keeps the two-row toolbar usable", async ({ page }) =
   // A 760px desktop pane exposes a 380 CSS-pixel layout viewport at 200%.
   // Exercising that effective viewport is stable in both Chromium and WebKit.
   await reloadAtWidth(page, 380, 540);
-  for (const name of ["Search projects", "Outline and find", "Library", "Comments", "Settings", "More tools"]) {
+  for (const name of ["Search projects", "Outline and find", "Library", "Comment inbox, no new activity", "Comments", "Settings", "More tools"]) {
     await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
   }
   await page.getByRole("button", { name: "More tools" }).click();
