@@ -137,16 +137,33 @@ export class CommentInbox {
     this.panelController = new AnchoredPanelController(this.launcher, this.panel, {
       initialFocus: () => this.tabs.get(this.filter) ?? null,
       beforeOpen: () => this.render(),
-      onOpen: () => void this.refresh(),
+      onOpen: () => {
+        if (!this.initialized) {
+          this.status.textContent = "Preparing the comment inbox…";
+          return;
+        }
+        void this.refresh().catch(() => {
+          this.status.textContent = "Comment activity could not be refreshed; showing the previous snapshot.";
+        });
+      },
     });
+    // The inbox is useful even before its provider baseline is ready: opening
+    // it should always reveal a clear preparing/empty/error state. A failed
+    // initial read must never leave the toolbar control inert for the session.
+    this.launcher.disabled = false;
     this.render();
   }
 
   /** Establishes the first device-local baseline without labelling old threads new. */
   async initialize(): Promise<void> {
-    await this.refresh(true);
-    this.initialized = true;
-    this.launcher.disabled = false;
+    try {
+      await this.refresh(true);
+    } catch {
+      this.status.textContent = "Comment activity is temporarily unavailable. Open the inbox and choose Check to retry.";
+    } finally {
+      this.initialized = true;
+      this.launcher.disabled = false;
+    }
   }
 
   invalidate(): void {

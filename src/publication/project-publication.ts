@@ -40,6 +40,20 @@ function unique(values: string[]): string[] {
   return [...new Set(values)];
 }
 
+/**
+ * Project overview publication paths are authored relative to the overview's
+ * project root (for example `references/library.bib`). Library providers,
+ * however, address assets from the repository root. Preserve already-rooted
+ * project paths while resolving the authored shorthand once at the project
+ * configuration boundary.
+ */
+function resolveProjectBibliographyPath(path: string, overviewPath: string): string {
+  const normalized = path.replace(/\\/g, "/").trim().replace(/^\.\/+/, "");
+  const projectRoot = overviewPath.replace(/\\/g, "/").split("/").slice(0, -1).join("/");
+  if (!projectRoot || normalized.startsWith(`${projectRoot}/`)) return normalized;
+  return `${projectRoot}/${normalized}`;
+}
+
 function valuesEqual(
   field: keyof PublicationSettings,
   left: PublicationSettings[keyof PublicationSettings],
@@ -75,7 +89,8 @@ export function resolveEffectivePublication(
   if (configs.length) {
     const paths: string[] = [];
     for (const config of configs) {
-      for (const path of config.settings.bibliography) {
+      for (const authoredPath of config.settings.bibliography) {
+        const path = resolveProjectBibliographyPath(authoredPath, config.overviewPath);
         bibliographySources.push({ project: config.project, path });
         if (!paths.includes(path)) paths.push(path);
       }
