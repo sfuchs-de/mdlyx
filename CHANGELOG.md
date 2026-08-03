@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.4 — 2026-08-03
+
+- Kept LyX-style element overlays and full MathLive selections visible when
+  the application uses an explicit dark theme.
+- Bounded the optional self-hosted sync service's readiness probe by checking
+  its two durable Redis clients concurrently.
+- Added Chromium, WebKit, and API regression coverage for both fixes.
+
 ## 0.1.3 — 2026-08-03
 
 - Added a project-wide comment inbox with New, Unresolved, and All views.
