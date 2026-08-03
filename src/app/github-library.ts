@@ -1,4 +1,10 @@
-import { countUnresolvedComments, normalizeMeta, parseFrontmatter, type DocMeta } from "../markdown/frontmatter";
+import {
+  commentActivityDigest,
+  countUnresolvedComments,
+  normalizeMeta,
+  parseFrontmatter,
+  type DocMeta,
+} from "../markdown/frontmatter";
 import type { GitHubFileRef, OpenedFile, RemoteConflictResult, SaveResult } from "./file-adapter";
 import { desktopSessionStore, type DesktopSessionStore } from "./tauri-bridge";
 import { HttpClient, responseJson } from "./http-client";
@@ -18,6 +24,7 @@ export interface GitHubLibraryFile {
   meta: DocMeta;
   /** Comments which have not been explicitly resolved in document frontmatter. */
   openCommentCount: number;
+  commentActivityDigest?: string;
 }
 
 export type SharedAccessRole = "reader" | "commenter" | "editor";
@@ -117,6 +124,7 @@ interface IndexResponse {
     sha: string;
     meta: unknown;
     openCommentCount: number;
+    commentActivityDigest?: string;
   }>;
 }
 
@@ -605,6 +613,7 @@ export class GitHubLibrary {
         handle: { kind: "github" as const, path: entry.path, sha: entry.sha },
         meta: frontmatter.library,
         openCommentCount: countUnresolvedComments(frontmatter.comments),
+        commentActivityDigest: commentActivityDigest(frontmatter.comments),
       };
     });
   }
@@ -620,6 +629,7 @@ export class GitHubLibrary {
         sha: cached.source.sha,
         meta: parsed.library,
         openCommentCount: countUnresolvedComments(parsed.comments),
+        commentActivityDigest: commentActivityDigest(parsed.comments),
       };
     });
     for (const cached of this.sourcesByPath.values()) {
@@ -630,6 +640,7 @@ export class GitHubLibrary {
         sha: cached.source.sha,
         meta: parsed.library,
         openCommentCount: countUnresolvedComments(parsed.comments),
+        commentActivityDigest: commentActivityDigest(parsed.comments),
       });
     }
     return effective.map((entry) => ({
@@ -640,6 +651,9 @@ export class GitHubLibrary {
       openCommentCount: Number.isSafeInteger(entry.openCommentCount) && entry.openCommentCount > 0
         ? entry.openCommentCount
         : 0,
+      ...(typeof entry.commentActivityDigest === "string" && entry.commentActivityDigest
+        ? { commentActivityDigest: entry.commentActivityDigest }
+        : {}),
     }));
   }
 

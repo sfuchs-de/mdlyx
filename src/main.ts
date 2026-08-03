@@ -7,7 +7,7 @@ import type { LibraryView } from "./app/library-view";
 import { DocInspector } from "./app/doc-inspector";
 import { exportLatex } from "./tex/export-latex";
 import { initConfig, applySavedConfig } from "./app/config";
-import { countUnresolvedComments, parseFrontmatter } from "./markdown/frontmatter";
+import { commentActivityDigest, countUnresolvedComments, parseFrontmatter } from "./markdown/frontmatter";
 import type { LibraryFile } from "./app/library";
 import { downloadText, type FileHandle } from "./app/file-adapter";
 import { githubLibrary } from "./app/github-library";
@@ -35,6 +35,7 @@ import {
 } from "./publication/project-publication";
 import { renderInvitation } from "./app/invitation";
 import type { WritingGuide } from "./app/writing-guide";
+import type { CommentInbox } from "./app/comment-inbox";
 
 diagnosticsStore.install();
 installVisualViewportTrace();
@@ -104,6 +105,7 @@ const {
   activateExisting,
   refreshRemote,
   relayout,
+  focusComment,
   setSelectionUiObscured,
   setRemoteAccess,
   purgeRemoteData,
@@ -193,6 +195,7 @@ window.addEventListener("keydown", openWritingGuideFromKeyboard, true);
 // --- GitHub-backed and local-folder library --------------------------------
 const librarySync = new LibrarySyncController();
 let lastSharedPrincipalId: string | null = null;
+let commentInbox: CommentInbox | null = null;
 librarySync.subscribe((snapshot) => {
   const principal = snapshot.status.authenticated ? snapshot.status.principal : undefined;
   setRemoteAccess(
@@ -214,6 +217,7 @@ librarySync.subscribe((snapshot) => {
     void purgeRemoteData();
   }
   lastSharedPrincipalId = nextShared;
+  commentInbox?.invalidate();
 });
 let libraryView: LibraryView | null = null;
 let libraryShell: ResponsiveLibraryShell | null = null;
@@ -316,7 +320,10 @@ const initializeLibrary = async (): Promise<void> => {
   // that substantial workspace out of the initial editor entry chunk; wide
   // layouts still request it immediately, while the editor can parse/paint in
   // parallel with the module fetch.
-  const { LibraryView } = await import("./app/library-view");
+  const [{ LibraryView }, { CommentInbox }] = await Promise.all([
+    import("./app/library-view"),
+    import("./app/comment-inbox"),
+  ]);
   const library = new LibraryView(libraryEl, {
     onActivateExisting: (f, context) =>
       activateExisting(f.name, f.handle, context.isCurrent),
@@ -349,6 +356,7 @@ const initializeLibrary = async (): Promise<void> => {
     onCatalogChange: () => {
       scheduleProjectCatalogRefresh();
       projectSearch?.invalidate();
+      commentInbox?.invalidate();
       editor.refreshFigureAssets();
       scholarlyTools?.invalidateCatalog();
       void scholarlyTools?.refreshCatalog();
@@ -370,6 +378,24 @@ const initializeLibrary = async (): Promise<void> => {
     onNavigateAnchor: navigateEditorAnchor,
   }, librarySync);
   libraryView = library;
+  commentInbox = new CommentInbox(button("btn-inbox"), {
+    context: () => {
+      const catalog = library.catalogIdentity();
+      const status = librarySync.snapshot().status;
+      const principal = status.principal;
+      return {
+        ...catalog,
+        principalKey: principal
+          ? `${principal.kind}:${principal.id}`
+          : status.login ? `owner:${status.login}` : "local",
+      };
+    },
+    sources: () => library.commentInboxSources(),
+    open: (path) => library.openByPath(path),
+    focus: (commentId) => focusComment(commentId),
+    refreshLibrary: () => library.pull(),
+    usesGitHub: () => library.usesGitHub,
+  });
   if (latestActivity) library.setActivity(latestActivity);
   const libraryScrim = document.getElementById("library-scrim");
   if (libraryScrim instanceof HTMLButtonElement) {
@@ -479,6 +505,7 @@ const initializeLibrary = async (): Promise<void> => {
     const oauthReturn = await githubLibrary.completeBrowserOAuth();
     library.setGitHubConnectError(oauthReturn.error);
     await library.init();
+    await commentInbox.initialize();
     libraryShell?.sync(library.isVisible);
     await refreshCatalogResultReferences();
   }
@@ -677,8 +704,11 @@ setOnMeta((meta) => {
   scholarlyTools?.invalidateCatalog();
   void scholarlyTools?.refreshCatalog();
 });
-setOnPersisted((documentId, unresolvedCommentCount, meta, handle) => {
-  libraryView?.setDocumentCommentCount(documentId, unresolvedCommentCount, meta, handle);
+setOnPersisted((documentId, unresolvedCommentCount, meta, handle, commentDigest, origin) => {
+  libraryView?.setDocumentCommentCount(documentId, unresolvedCommentCount, meta, handle, commentDigest);
+  const path = libraryView?.documentPathForId(documentId);
+  if (path && origin === "save") void commentInbox?.markDocumentRead(path);
+  else commentInbox?.invalidate();
   projectSearch?.invalidate();
   scholarlyTools?.invalidateCatalog();
 });
@@ -913,6 +943,7 @@ if (import.meta.env.DEV) {
         folder: slash >= 0 ? p.slice(0, slash) : "",
         meta: parsed.library,
         openCommentCount: countUnresolvedComments(parsed.comments),
+        commentActivityDigest: commentActivityDigest(parsed.comments),
         handle: { getFile: async () => new File([text], p) } as unknown as FileHandle,
       });
     }

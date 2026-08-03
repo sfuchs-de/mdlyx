@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.3 — 2026-08-03
+
+- Added a project-wide comment inbox with New, Unresolved, and All views.
+- Added incremental comment-activity indexing, anchored navigation, and
+  device-local read state for GitHub, browser-folder, and Tauri libraries.
+- Added responsive mobile sheets, dark-mode styling, keyboard navigation, and
+  scoped-coauthor coverage for the inbox.
+
 ## 0.1.2 — 2026-08-02
 
 - Added governed, scope-aware Lean certificate evidence for registered results.

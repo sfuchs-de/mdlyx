@@ -49,6 +49,7 @@ Body
     expect(file.meta.id).toBe("remote-doc");
     expect(file.meta.projects).toEqual(["test-project"]);
     expect(file.openCommentCount).toBe(2);
+    expect(file.commentActivityDigest).toMatch(/^fnv1a:[0-9a-f]{8}$/);
   });
 
   it("falls back to v1 when the pre-v2 server returns SPA HTML", async () => {

@@ -217,6 +217,7 @@ Body
     const [file] = await withDir([fakeFile("commented.md", source)]).list();
     expect(file.meta.id).toBe("commented");
     expect(file.openCommentCount).toBe(2);
+    expect(file.commentActivityDigest).toMatch(/^fnv1a:[0-9a-f]{8}$/);
   });
 
   it("ignores malformed comment array members instead of dropping the document", async () => {

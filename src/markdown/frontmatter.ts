@@ -311,6 +311,23 @@ export function countUnresolvedComments(comments: unknown): number {
   ).length;
 }
 
+/**
+ * A compact provider-local fingerprint for the complete persisted comment
+ * field. It deliberately hashes the authored JSON representation rather than
+ * comment counts: replies, edits, resolutions, and reopenings must all
+ * invalidate the comment inbox even when the unresolved count is unchanged.
+ */
+export function commentActivityDigest(comments: unknown): string | undefined {
+  if (!Array.isArray(comments) || comments.length === 0) return undefined;
+  const source = JSON.stringify(comments);
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < source.length; index++) {
+    hash ^= source.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return `fnv1a:${(hash >>> 0).toString(16).padStart(8, "0")}`;
+}
+
 export function emptyFrontmatter(): Frontmatter {
   return {
     macros: {},

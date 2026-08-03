@@ -454,6 +454,7 @@ describe("GitHub library API", () => {
         sha: "blob-sha",
         meta: { id: "proof", projects: ["demo"] },
         openCommentCount: 2,
+        commentActivityDigest: "sha256:3cf49d31a1bc483a324294662c0e8878f65bbe7daeef13f35d3eea1ca7f682da",
       }],
     });
   });
@@ -515,6 +516,7 @@ describe("GitHub library API", () => {
         sha: "block-blob-sha",
         meta: { id: "proof", projects: ["demo"] },
         openCommentCount: 1,
+        commentActivityDigest: "sha256:0eabb0f446972bf7fc8e8d67a62d2af31d356026ad81759f3544b0dcf2d3f346",
       }],
     });
   });

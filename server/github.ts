@@ -1,4 +1,4 @@
-import { createSign } from "node:crypto";
+import { createHash, createSign } from "node:crypto";
 import { isAlias, isMap, isScalar, parseDocument, visit } from "yaml";
 import type { Config } from "./config.js";
 
@@ -36,6 +36,7 @@ export interface LibraryIndexEntry {
   sha: string;
   meta: Record<string, unknown>;
   openCommentCount: number;
+  commentActivityDigest?: string;
 }
 
 export interface LibraryIndex {
@@ -1158,7 +1159,11 @@ export class GitHubLibraryApi {
   }
 }
 
-function indexMetadata(text: string): { meta: Record<string, unknown>; openCommentCount: number } {
+function indexMetadata(text: string): {
+  meta: Record<string, unknown>;
+  openCommentCount: number;
+  commentActivityDigest?: string;
+} {
   const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text)?.[1];
   if (!frontmatter) return { meta: {}, openCommentCount: 0 };
   const resolvedLibrary = protectedLibraryMetadata(text);
@@ -1173,6 +1178,13 @@ function indexMetadata(text: string): { meta: Record<string, unknown>; openComme
     openCommentCount: Array.isArray(comments)
       ? comments.filter((comment) => comment && typeof comment === "object" && (comment as { resolved?: unknown }).resolved !== true).length
       : 0,
+    ...(Array.isArray(comments) && comments.length > 0
+      ? {
+          commentActivityDigest: `sha256:${createHash("sha256")
+            .update(JSON.stringify(comments))
+            .digest("hex")}`,
+        }
+      : {}),
   };
 }
 

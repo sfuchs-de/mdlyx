@@ -5,6 +5,7 @@ import { createEditor, type EditorHandle } from "../editor/create-editor";
 import { parseMarkdown } from "../markdown/parse";
 import { serializeMarkdown } from "../markdown/serialize";
 import {
+  commentActivityDigest,
   parseFrontmatter,
   serializeFrontmatter,
   toKatexMacros,
@@ -213,6 +214,8 @@ export function initApp(host: HTMLElement, dom: {
     unresolvedCommentCount: number,
     meta: DocMeta,
     handle: FileRef,
+    commentDigest?: string,
+    origin?: "save" | "remote",
   ) => void) | null = null;
   let onDocumentLinkOpen: ((
     id: string,
@@ -1084,6 +1087,8 @@ export function initApp(host: HTMLElement, dom: {
       countUnresolvedComments(persisted.comments),
       persisted.library,
       tab.file.handle,
+      commentActivityDigest(persisted.comments),
+      "save",
     );
   }
 
@@ -1283,6 +1288,8 @@ export function initApp(host: HTMLElement, dom: {
       countUnresolvedComments(tab.frontmatter.comments),
       tab.frontmatter.library,
       tab.file.handle,
+      commentActivityDigest(tab.frontmatter.comments),
+      "remote",
     );
   }
 
@@ -1498,6 +1505,27 @@ export function initApp(host: HTMLElement, dom: {
     setCommentsButton(show);
   }
   dom.buttons.comments.onclick = cmdToggleComments;
+
+  function focusComment(id: string): boolean {
+    if (!editor.listComments().some((comment) => comment.id === id)) return false;
+    const anchor = host.querySelector<HTMLElement>(`[data-comment-id="${CSS.escape(id)}"]`);
+    commentsMargin.setVisible(true);
+    setCommentsButton(true);
+    editor.selectComment(id);
+    commentsMargin.focus(id);
+    pulseHighlight(id);
+    if (anchor) {
+      const reduced = typeof matchMedia === "function"
+        && matchMedia("(prefers-reduced-motion: reduce)").matches;
+      anchor.scrollIntoView({
+        block: "center",
+        inline: "nearest",
+        behavior: reduced ? "auto" : "smooth",
+      });
+    }
+    editor.view.focus();
+    return true;
+  }
 
   window.addEventListener("keydown", (e) => {
     const mod = e.metaKey || e.ctrlKey;
@@ -1732,6 +1760,7 @@ export function initApp(host: HTMLElement, dom: {
     refreshRemote,
     isDirty: () => tabs.some((t) => t.file.dirty),
     relayout: () => commentsMargin.reposition(),
+    focusComment,
     setSelectionUiObscured: (obscured: boolean) => selectionPopover.setObscured(obscured),
     setRemoteAccess: (
       resolver: (meta: DocMeta, path?: string) => RemoteDocumentAccess,
@@ -1786,6 +1815,8 @@ export function initApp(host: HTMLElement, dom: {
       unresolvedCommentCount: number,
       meta: DocMeta,
       handle: FileRef,
+      commentDigest?: string,
+      origin?: "save" | "remote",
     ) => void) => {
       onPersisted = cb;
     },
