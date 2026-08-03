@@ -97,7 +97,7 @@ export function initSharingSettings(
     panel.append(
       heading,
       paragraph(
-        "Add each person individually, choose exactly which projects they can use, and assign the least access they need. Changes are committed to the private library access policy.",
+        "Add each person individually, choose exactly which projects they can use, and assign the least access they need. Project rights remain until revoked; active browser sessions renew automatically after policy revalidation. Changes are committed to the private library access policy.",
         "config-desc",
       ),
     );
