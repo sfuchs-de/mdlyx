@@ -26,6 +26,20 @@ export interface ResultNode {
   modelState?: string;
   branch?: string;
   jointBlock?: string;
+  /** Generated navigation metadata. The result registry remains authoritative. */
+  claimAnchor?: string;
+  /** Generated navigation metadata. The result registry remains authoritative. */
+  derivationAnchor?: string;
+  /** Optional display metadata copied from the first authoritative owner formula. */
+  formulaTitle?: string;
+  /** Optional TeX source copied from the first authoritative owner formula. */
+  formula?: string;
+  /** Optional editorial summary copied from the governed key-result registry. */
+  headlineStatement?: string;
+  /** Optional editorial significance copied from the governed key-result registry. */
+  whyItMatters?: string;
+  /** Generated owner-review state from the derivation audit. */
+  derivationAudit?: string;
   ownerAnchor?: string;
   project: string;
   manifestDocumentId: string;
@@ -41,12 +55,48 @@ export interface ResultNode {
  * result ID.
  */
 export function resultOwnerAnchors(result: ResultNode): string[] {
-  if (result.ownerAnchor?.trim()) return [result.ownerAnchor.trim()];
-  return [
+  return uniqueAnchors([
+    result.claimAnchor,
+    result.ownerAnchor,
     `mathdown-claim:${result.id}`,
+    result.derivationAnchor,
     `mathdown-derivation:${result.id}`,
     result.id,
-  ];
+  ]);
+}
+
+/** Ordered claim destinations for statement-first navigation. */
+export function resultClaimAnchors(result: ResultNode): string[] {
+  return uniqueAnchors([
+    result.claimAnchor,
+    result.ownerAnchor,
+    `mathdown-claim:${result.id}`,
+    result.id,
+  ]);
+}
+
+/** Ordered proof destinations for derivation-first navigation. */
+export function resultDerivationAnchors(result: ResultNode): string[] {
+  return uniqueAnchors([
+    result.derivationAnchor,
+    `mathdown-derivation:${result.id}`,
+  ]);
+}
+
+/** A provider-neutral, stable-id link suitable for Mathdown prose or notes. */
+export function resultInternalLink(result: ResultNode): string {
+  const anchor = resultClaimAnchors(result)[0];
+  return `[[${result.ownerId}#${anchor}|${result.id}]]`;
+}
+
+function uniqueAnchors(values: Array<string | undefined>): string[] {
+  const seen = new Set<string>();
+  return values.flatMap((value) => {
+    const anchor = value?.trim();
+    if (!anchor || seen.has(anchor)) return [];
+    seen.add(anchor);
+    return [anchor];
+  });
 }
 
 export interface DependencyManifest {
@@ -190,7 +240,26 @@ function normaliseHeader(value: string): string {
 }
 
 function cellText(cell: PMNode | undefined): string {
-  return cell?.textContent.trim().replace(/\s+/g, " ") ?? "";
+  return cell ? projectedText(cell).trim().replace(/\s+/g, " ") : "";
+}
+
+/** ProseMirror atom nodes have no textContent; retain their authored TeX. */
+function projectedText(node: PMNode): string {
+  if (node.isText) return node.text ?? "";
+  if (node.type.name === "math_inline") {
+    const latex = typeof node.attrs.latex === "string" ? node.attrs.latex : "";
+    return latex ? `$${latex}$` : "";
+  }
+  if (node.type.name === "math_display") {
+    const latex = typeof node.attrs.latex === "string" ? node.attrs.latex : "";
+    return latex ? `$$${latex}$$` : "";
+  }
+  if (node.type.name === "hard_break" || node.type.name === "soft_break") return "\n";
+  let value = "";
+  node.forEach((child) => {
+    value += projectedText(child);
+  });
+  return value;
 }
 
 function documentLink(cell: PMNode | undefined): { id: string; label: string } | null {
@@ -230,9 +299,11 @@ function validationState(value: string): ValidationState | null {
 }
 
 /**
- * Parse the table immediately following `## ... {#dependency-graph}`. The
- * Contract v2 tables may be generated read-only projections. Older ordinary
- * Markdown manifests remain valid for external/local libraries.
+ * Parse the table immediately following `## ... {#dependency-graph}`. A
+ * generated Contract v2 projection may instead identify the table with its
+ * guarded `mathdown:projection-v2:start` marker; this keeps the application
+ * independent of reader-facing heading wording. Older ordinary Markdown
+ * manifests still require the explicit heading anchor.
  */
 export function parseDependencyManifest(markdown: string, path: string): ParsedDependencyManifest {
   const parsed = parseFrontmatter(markdown);
@@ -275,20 +346,40 @@ export function parseDependencyManifest(markdown: string, path: string): ParsedD
       break;
     }
   }
-  if (headingIndex < 0) {
+  let tableStart = headingIndex >= 0 ? headingIndex + 1 : -1;
+  let stopAtHeading = headingIndex >= 0;
+  if (headingIndex < 0 && projection?.kind === "generated-result-manifest") {
+    for (let index = 0; index < doc.childCount; index++) {
+      const node = doc.child(index);
+      if (
+        node.type.name === "mathdown_source_marker"
+        && node.attrs.directive === "mathdown:projection-v2:start"
+      ) {
+        tableStart = index + 1;
+        stopAtHeading = false;
+        break;
+      }
+    }
+  }
+  if (tableStart < 0) {
     diagnostics.push(diagnostic(
       "manifest-heading",
       "error",
-      "Add a heading with the id {#dependency-graph} before the result table.",
+      "Add a heading with the id {#dependency-graph}, or a guarded generated-projection marker, before the result table.",
       { project, path },
     ));
     return { manifest: null, diagnostics };
   }
 
   let table: PMNode | null = null;
-  for (let index = headingIndex + 1; index < doc.childCount; index++) {
+  for (let index = tableStart; index < doc.childCount; index++) {
     const node = doc.child(index);
-    if (node.type.name === "heading") break;
+    if (stopAtHeading && node.type.name === "heading") break;
+    if (
+      !stopAtHeading
+      && node.type.name === "mathdown_source_marker"
+      && node.attrs.directive === "mathdown:projection-v2:end"
+    ) break;
     if (node.type.name === "table") {
       table = node;
       break;
@@ -298,7 +389,7 @@ export function parseDependencyManifest(markdown: string, path: string): ParsedD
     diagnostics.push(diagnostic(
       "manifest-table",
       "error",
-      "The dependency-graph heading must be followed by a Markdown table.",
+      "The dependency-graph interface must be followed by a Markdown table.",
       { project, path },
     ));
     return { manifest: null, diagnostics };
@@ -376,6 +467,13 @@ export function parseDependencyManifest(markdown: string, path: string): ParsedD
       modelState: optionalCell(valueAt(row, "model state")),
       branch: optionalCell(valueAt(row, "branch")),
       jointBlock: optionalCell(valueAt(row, "joint block")),
+      claimAnchor: optionalCell(valueAt(row, "claim anchor")),
+      derivationAnchor: optionalCell(valueAt(row, "derivation anchor")),
+      formulaTitle: optionalCell(valueAt(row, "formula title")),
+      formula: formulaCell(valueAt(row, "formula")),
+      headlineStatement: optionalCell(valueAt(row, "headline statement")),
+      whyItMatters: optionalCell(valueAt(row, "why it matters")),
+      derivationAudit: optionalCell(valueAt(row, "derivation audit")),
       ownerAnchor: optionalCell(valueAt(row, "owner anchor")),
       project,
       manifestDocumentId: meta.id ?? "",
@@ -498,6 +596,25 @@ export function buildDependencyCatalog(
 function optionalCell(cell: PMNode | undefined): string | undefined {
   const value = cellText(cell);
   return value || undefined;
+}
+
+function formulaCell(cell: PMNode | undefined): string | undefined {
+  const formulas = new Set<string>();
+  cell?.descendants((node) => {
+    if (node.type.name !== "math_inline" && node.type.name !== "math_display") return true;
+    const latex = typeof node.attrs.latex === "string" ? node.attrs.latex.trim() : "";
+    if (latex) formulas.add(latex);
+    return false;
+  });
+  if (formulas.size === 1) return formulas.values().next().value;
+  const value = optionalCell(cell);
+  if (!value) return undefined;
+  if (value.startsWith("$$") && value.endsWith("$$")) return value.slice(2, -2).trim();
+  if (value.startsWith("\\[") && value.endsWith("\\]")) return value.slice(2, -2).trim();
+  if (value.startsWith("$") && value.endsWith("$") && value.length > 1) {
+    return value.slice(1, -1).trim();
+  }
+  return value;
 }
 
 function curatedStatus(value: string): ResultNode["curatedStatus"] {

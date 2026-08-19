@@ -3,8 +3,12 @@ import {
   buildDependencyCatalog,
   downstreamOf,
   parseDependencyManifest,
+  resultClaimAnchors,
+  resultDerivationAnchors,
+  resultInternalLink,
   resultOwnerAnchors,
   resultsForProject,
+  type ResultNode,
   upstreamOf,
 } from "./dependency-graph";
 
@@ -31,7 +35,7 @@ ${rows}
 
 describe("dependency manifest Markdown", () => {
   it("uses the stable claim marker when a projection omits an owner anchor", () => {
-    expect(resultOwnerAnchors({
+    const result: ResultNode = {
       id: "R-DEMO-OVERLAP",
       title: "Overlap",
       ownerId: "sample-risk-analysis",
@@ -44,11 +48,73 @@ describe("dependency manifest Markdown", () => {
       manifestDocumentId: "sample-claims",
       manifestPath: "claims.md",
       row: 1,
-    })).toEqual([
+    };
+    expect(resultOwnerAnchors(result)).toEqual([
       "mathdown-claim:R-DEMO-OVERLAP",
       "mathdown-derivation:R-DEMO-OVERLAP",
       "R-DEMO-OVERLAP",
     ]);
+    expect(resultClaimAnchors(result)).toEqual([
+      "mathdown-claim:R-DEMO-OVERLAP",
+      "R-DEMO-OVERLAP",
+    ]);
+    expect(resultDerivationAnchors(result)).toEqual([
+      "mathdown-derivation:R-DEMO-OVERLAP",
+    ]);
+    expect(resultInternalLink(result)).toBe(
+      "[[sample-risk-analysis#mathdown-claim:R-DEMO-OVERLAP|R-DEMO-OVERLAP]]",
+    );
+  });
+
+  it("prefers generated claim and derivation anchors without losing compatibility fallbacks", () => {
+    const source = `---
+library: {"id":"claims","title":"Claims","projects":["p"],"contains":["dependency-graph"]}
+---
+
+## Results {#dependency-graph}
+
+| ID | Title | Owner document | Validation state | Prerequisites | Evidence | Remaining conditions | Claim anchor | Derivation anchor | Formula title | Formula | Headline statement | Why it matters | Derivation audit |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| \`R-A\` | Claim | [[doc-a]] | validated | — | checked at $\\rho(Q)<1$ | Requires $s_L\\neq0$ and $r_L\\neq0$. | claim-R-A | derivation-R-A | Governing identity | $x=y$ | Exact under the stated domain. | Closes the model. | complete |
+`;
+    const parsed = parseDependencyManifest(source, "claims.md");
+    expect(parsed.diagnostics).toEqual([]);
+    const result = parsed.manifest!.results[0];
+    expect(result).toMatchObject({
+      claimAnchor: "claim-R-A",
+      derivationAnchor: "derivation-R-A",
+      formulaTitle: "Governing identity",
+      formula: "x=y",
+      headlineStatement: "Exact under the stated domain.",
+      whyItMatters: "Closes the model.",
+      derivationAudit: "complete",
+      evidence: "checked at $\\rho(Q)<1$",
+      condition: "Requires $s_L\\neq0$ and $r_L\\neq0$.",
+    });
+    expect(resultClaimAnchors(result)[0]).toBe("claim-R-A");
+    expect(resultDerivationAnchors(result)[0]).toBe("derivation-R-A");
+    expect(resultDerivationAnchors(result)).not.toContain("claim-R-A");
+    expect(resultInternalLink(result)).toBe("[[doc-a#claim-R-A|R-A]]");
+  });
+
+  it("accepts a guarded generated projection without coupling it to heading prose", () => {
+    const source = `---
+library: {"id":"claims","title":"Claims","projects":["p"],"contains":["dependency-graph"],"projection":{"kind":"generated-result-manifest","schema_version":"2.0","sources":["results.yaml","graph.json"],"digest":"sha256:${"a".repeat(64)}","read_only":true,"acknowledged_warnings":[]}}
+---
+
+## Result dependency manifest
+
+<!-- mathdown:projection-v2:start -->
+
+| Result ID | Result | Owner | Validation | Derivation audit | Depends on | Evidence | Remaining condition | Claim anchor | Derivation anchor |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| \`R-A\` | Claim | [[doc-a]] | validated | complete | — | checked | none | claim-R-A | derivation-R-A |
+
+<!-- mathdown:projection-v2:end -->
+`;
+    const parsed = parseDependencyManifest(source, "claims.md");
+    expect(parsed.diagnostics).toEqual([]);
+    expect(parsed.manifest?.results.map((result) => result.id)).toEqual(["R-A"]);
   });
 
   it("extracts result-level nodes, owner wiki links, dependencies, and evidence", () => {

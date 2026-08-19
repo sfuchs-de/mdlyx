@@ -301,14 +301,14 @@ test("project overview exposes exact evidence and preserves project navigation",
 
   const attentionResult = page.locator('.overview-results-table [data-result-id="R-B"]');
   await attentionResult.scrollIntoViewIfNeeded();
-  const beforeSelectionScroll = await page.locator("#project-overview").evaluate((element) => element.scrollTop);
-  expect(beforeSelectionScroll).toBeGreaterThan(0);
+  const beforeSelectionTop = (await attentionResult.boundingBox())!.y;
+  expect(await page.locator("#project-overview").evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
   await attentionResult.focus();
   await page.keyboard.press("Enter");
   await expect(attentionResult).toBeFocused();
   await expect(attentionResult).toBeInViewport();
   await expect.poll(async () => Math.abs(
-    (await page.locator("#project-overview").evaluate((element) => element.scrollTop)) - beforeSelectionScroll,
+    (await attentionResult.boundingBox())!.y - beforeSelectionTop,
   )).toBeLessThanOrEqual(1);
 
   const frontierResult = page.locator('.overview-frontier [data-result-id="R-B"]');

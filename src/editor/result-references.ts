@@ -14,6 +14,8 @@ export interface ResultReference {
   id: string;
   title: string;
   ownerLabel: string;
+  /** Local public-result prerequisites from the governed dependency projection. */
+  dependsOn?: readonly string[];
   certificate?: LeanCertificateEvidence;
 }
 
@@ -28,6 +30,7 @@ export const resultReferencesKey = new PluginKey<DecorationSet>("result-referenc
 const TOKEN_CHAR = /[A-Za-z0-9_-]/;
 interface ReferenceIndex {
   byId: Map<string, ResultReference>;
+  dependents: Map<string, string[]>;
   pattern: RegExp | null;
 }
 const referenceIndexes = new WeakMap<object, ReferenceIndex>();
@@ -45,8 +48,18 @@ function indexReferences(references: readonly ResultReference[]): ReferenceIndex
       .map((reference) => [reference.id, reference]),
   );
   const ids = [...byId.keys()].sort((a, b) => b.length - a.length || a.localeCompare(b));
+  const dependents = new Map<string, string[]>();
+  for (const reference of byId.values()) {
+    for (const dependency of reference.dependsOn ?? []) {
+      if (!byId.has(dependency)) continue;
+      const values = dependents.get(dependency) ?? [];
+      values.push(reference.id);
+      dependents.set(dependency, values);
+    }
+  }
   const created = {
     byId,
+    dependents,
     pattern: ids.length ? new RegExp(ids.map(escapeRegExp).join("|"), "g") : null,
   };
   referenceIndexes.set(references, created);
@@ -120,26 +133,45 @@ function buildDecorations(
       },
     );
   });
-  const { byId } = indexReferences(references);
+  const { byId, dependents } = indexReferences(references);
   doc.descendants((node, pos) => {
     if (node.type !== schema.nodes.mathdown_source_marker) return true;
     const directive = typeof node.attrs.directive === "string" ? node.attrs.directive : "";
-    const match = /^mathdown-(?:claim|derivation|result):(.+)$/.exec(directive);
-    const reference = match ? byId.get(match[1]) : undefined;
-    if (!reference?.certificate) return false;
+    const match = /^mathdown-(claim|derivation|result):(.+)$/.exec(directive);
+    const reference = match ? byId.get(match[2]) : undefined;
+    if (!reference) return false;
+    const prerequisiteIds = [...(reference.dependsOn ?? [])].filter((id) => byId.has(id));
+    const dependentIds = dependents.get(reference.id) ?? [];
+    const showContext = match?.[1] === "claim" && (prerequisiteIds.length > 0 || dependentIds.length > 0);
+    const certificate = reference.certificate;
+    if (!certificate && !showContext) return false;
     decorations.push(Decoration.widget(
       pos + node.nodeSize,
       () => {
         const wrap = document.createElement("span");
-        wrap.className = "lean-certificate-marker";
+        wrap.className = `result-context-marker${certificate ? " lean-certificate-marker" : ""}`;
         wrap.contentEditable = "false";
-        wrap.append(createLeanCertificateBadge(
-          reference.certificate!,
-          () => openOwner?.(reference.id),
-        ));
+        if (showContext) {
+          const context = document.createElement("span");
+          context.className = "result-dependency-context";
+          context.textContent = `Public prereq ${prerequisiteIds.length} · Used by ${dependentIds.length}`;
+          context.title = [
+            `Local public prerequisites: ${prerequisiteIds.join(", ") || "none"}.`,
+            `Used by: ${dependentIds.join(", ") || "none"}.`,
+            "Imported and atomic proof obligations remain in the graph and owner derivation.",
+          ].join(" ");
+          context.setAttribute("aria-label", context.title);
+          wrap.append(context);
+        }
+        if (certificate) {
+          wrap.append(createLeanCertificateBadge(
+            certificate,
+            () => openOwner?.(reference.id),
+          ));
+        }
         return wrap;
       },
-      { side: -1, key: `lean-certificate:${directive}` },
+      { side: -1, key: `${certificate ? "lean-certificate" : "result-context"}:${directive}` },
     ));
     return false;
   });

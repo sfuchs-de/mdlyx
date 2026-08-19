@@ -114,14 +114,49 @@ describe("ProjectOverviewView key results", () => {
       .toContain("Read · Read result 1");
 
     root.querySelector<HTMLButtonElement>('[data-result-id="R-1"]')!.click();
-    expect(root.querySelector(".overview-key-result-detail")?.textContent).toContain("Evidence 1");
+    expect(root.querySelector(".result-inspector")?.textContent).toContain("Evidence 1");
     expect(root.querySelector('[data-result-id="R-1"]')?.getAttribute("aria-pressed")).toBe("true");
 
-    root.querySelector<HTMLButtonElement>(".overview-key-result-detail .overview-mini-button")!.click();
+    [...root.querySelectorAll<HTMLButtonElement>(".result-inspector-action")]
+      .find((item) => item.textContent === "Registered statement")!.click();
     await vi.waitFor(() => expect(openDocument).toHaveBeenCalledWith("owner-1", "result-1"));
 
     root.querySelector<HTMLButtonElement>('[data-result-id="R-2"]')!
       .dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     await vi.waitFor(() => expect(openDocument).toHaveBeenCalledWith("owner-2", "result-2"));
+  });
+
+  it("inspects a selected cross-project prerequisite without hiding its project", async () => {
+    const loaded = fixture();
+    const main = loaded.snapshot.dependencyCatalog.byId.get("R-1")!;
+    main.validation = "partial";
+    main.dependsOn = ["R-X"];
+    const external: ResultNode = {
+      ...result(8),
+      id: "R-X",
+      title: "Imported theorem",
+      ownerId: "external-owner",
+      ownerLabel: "External owner",
+      project: "q",
+    };
+    loaded.snapshot.dependencyCatalog.results.push(external);
+    loaded.snapshot.dependencyCatalog.byId.set(external.id, external);
+    const root = document.createElement("main");
+    document.body.append(root);
+    const view = new ProjectOverviewView(root, {
+      loadCatalog: async () => loaded,
+      openDocument: vi.fn(async () => false),
+      openGraph: vi.fn(),
+      refreshLibrary: async () => true,
+      usesGitHub: () => true,
+      onModeChange: vi.fn(),
+    });
+
+    await view.open("p");
+    root.querySelector<SVGGElement>('.overview-frontier [data-result-id="R-X"]')!
+      .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(root.querySelector(".result-inspector")?.textContent).toContain("Imported theorem");
+    expect(root.querySelector(".result-inspector-metadata")?.textContent).toContain("Projectq");
   });
 });
