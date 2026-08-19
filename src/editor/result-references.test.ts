@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { EditorState } from "prosemirror-state";
 import { describe, expect, it } from "vitest";
 import { parseMarkdown } from "../markdown/parse";
@@ -101,5 +102,27 @@ describe("catalog-backed result references", () => {
     const decorations = resultReferencesKey.getState(state)?.find() ?? [];
     expect(decorations).toHaveLength(1);
     expect(decorations[0].spec.key).toBe("lean-certificate:mathdown-claim:R-CERT");
+  });
+
+  it("adds claim-local public dependency context without inventing proof-use edges", () => {
+    const doc = parseMarkdown("<!-- mathdown-claim:R-MAIN -->\n\nClaim text.\n");
+    const references: ResultReference[] = [
+      { ...overlap, id: "R-BASE", title: "Base", dependsOn: [] },
+      { ...overlap, id: "R-MAIN", title: "Main", dependsOn: ["R-BASE"] },
+      { ...overlap, id: "R-DOWN", title: "Downstream", dependsOn: ["R-MAIN"] },
+    ];
+    const state = EditorState.create({
+      schema,
+      doc,
+      plugins: [...buildPlugins(), buildResultReferences(() => references)],
+    });
+
+    const decorations = resultReferencesKey.getState(state)?.find() ?? [];
+    expect(decorations).toHaveLength(1);
+    expect(decorations[0].spec.key).toBe("result-context:mathdown-claim:R-MAIN");
+    const widget = (decorations[0] as unknown as { type: { toDOM: () => HTMLElement } }).type.toDOM();
+    expect(widget.textContent).toBe("Public prereq 1 · Used by 1");
+    expect(widget.querySelector(".result-dependency-context")?.getAttribute("aria-label"))
+      .toContain("Imported and atomic proof obligations remain");
   });
 });

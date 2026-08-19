@@ -2,7 +2,8 @@ import {
   buildDependencyCatalog,
   downstreamOf,
   parseDependencyManifest,
-  resultOwnerAnchors,
+  resultClaimAnchors,
+  resultDerivationAnchors,
   resultsForProject,
   upstreamOf,
   type DependencyCatalog,
@@ -11,14 +12,11 @@ import {
   type ResultNode,
   type ValidationState,
 } from "./dependency-graph";
-import {
-  DEPENDENCY_STATUS,
-  DependencyGraphCanvas,
-} from "./dependency-graph-canvas";
+import { DependencyGraphCanvas } from "./dependency-graph-canvas";
 import type { ProjectCatalogLoadResult } from "./project-catalog-controller";
 import { savedProjectSelection, saveProjectSelection } from "./project-selection";
 import { MobileSheetController } from "./mobile-sheet";
-import { createLeanCertificateBadge } from "./lean-certificate-ui";
+import { createResultInspector } from "./result-inspector";
 
 export interface ProjectGraphHandlers {
   sources: () => DependencyManifestSource[];
@@ -42,6 +40,7 @@ export class ProjectGraphView {
   private selectedId: string | null = null;
   private loadErrors: string[] = [];
   private canvas: DependencyGraphCanvas | null = null;
+  private navigationError = "";
   private loadGeneration = 0;
   private readonly directionMedia: MediaQueryList | null;
   private readonly mobileSheetControllers: MobileSheetController[] = [];
@@ -128,6 +127,7 @@ export class ProjectGraphView {
       this.handlers.onProjectChange?.(this.project);
     }
     this.selectedId = null;
+    this.navigationError = "";
     this.render();
   }
 
@@ -180,6 +180,7 @@ export class ProjectGraphView {
       saveProjectSelection(this.project);
       this.handlers.onProjectChange?.(this.project);
       this.selectedId = null;
+      this.navigationError = "";
       this.render();
       this.root.querySelector<HTMLSelectElement>(".graph-select")?.focus({ preventScroll: true });
     });
@@ -337,6 +338,7 @@ export class ProjectGraphView {
 
   private select(id: string): void {
     this.selectedId = this.selectedId === id ? null : id;
+    this.navigationError = "";
     this.renderGraphArea();
   }
 
@@ -351,46 +353,17 @@ export class ProjectGraphView {
     }
     const result = this.catalog.byId.get(this.selectedId);
     if (!result) return;
-    host.append(
-      el("div", `graph-detail-state state-${result.validation}`, `${DEPENDENCY_STATUS[result.validation].symbol} ${DEPENDENCY_STATUS[result.validation].label}`),
-      el("h2", "graph-details-title", result.title),
-      el("div", "graph-detail-id", result.id),
-      button(`Open ${result.ownerLabel}`, "graph-detail-open", () => void this.openResult(result)),
-      detail("Project", result.project),
-      detail("Evidence", result.evidence || "No evidence recorded"),
-      detail("Remaining condition", result.condition || "None recorded"),
-    );
-    if (result.certificate) {
-      host.append(createLeanCertificateBadge(result.certificate, () => void this.openResult(result)));
+    host.append(createResultInspector(result, this.catalog, {
+      openStatement: (selected) => void this.openResultAt(selected, resultClaimAnchors(selected), false, "statement"),
+      openDerivation: (selected) => void this.openResultAt(selected, resultDerivationAnchors(selected), false, "derivation"),
+      openRelated: (related) => this.select(related.id),
+    }));
+    if (this.navigationError) {
+      const notice = el("p", "result-inspector-navigation-error", this.navigationError);
+      notice.setAttribute("role", "status");
+      notice.setAttribute("aria-live", "polite");
+      host.append(notice);
     }
-    for (const [label, value] of [
-      ["Curated status", result.curatedStatus],
-      ["Claim class", result.claimClass],
-      ["Model state", result.modelState],
-      ["Branch", result.branch],
-      ["Joint block", result.jointBlock],
-    ] as const) {
-      if (value) host.append(detail(label, value));
-    }
-    const prerequisites = result.dependsOn.flatMap((id) => {
-      const node = this.catalog?.byId.get(id);
-      return node ? [node] : [];
-    });
-    const dependents = this.catalog.results.filter((node) => node.dependsOn.includes(result.id));
-    host.append(this.resultLinks("Depends on", prerequisites), this.resultLinks("Used by", dependents));
-  }
-
-  private resultLinks(title: string, results: ResultNode[]): HTMLElement {
-    const section = el("section", "graph-detail-section");
-    section.append(el("h3", "graph-detail-label", title));
-    if (!results.length) {
-      section.append(el("p", "graph-detail-none", "None"));
-      return section;
-    }
-    for (const result of results) {
-      section.append(button(`${DEPENDENCY_STATUS[result.validation].symbol} ${result.id}`, "graph-result-link", () => this.select(result.id)));
-    }
-    return section;
   }
 
   private renderDiagnostics(host: HTMLElement): void {
@@ -437,7 +410,17 @@ export class ProjectGraphView {
   }
 
   private async openResult(result: ResultNode): Promise<void> {
-    for (const anchor of resultOwnerAnchors(result)) {
+    await this.openResultAt(result, resultClaimAnchors(result), true, "owner");
+  }
+
+  private async openResultAt(
+    result: ResultNode,
+    anchors: string[],
+    fallbackToOwner = false,
+    destination: "statement" | "derivation" | "owner" = "statement",
+  ): Promise<void> {
+    this.navigationError = "";
+    for (const anchor of anchors) {
       if (await this.handlers.openDocument(result.ownerId, anchor)) {
         this.close(false);
         return;
@@ -445,7 +428,17 @@ export class ProjectGraphView {
     }
     // External libraries may declare an owner without an addressable result
     // anchor. Opening the owner top is still preferable to a dead graph node.
-    if (await this.handlers.openDocument(result.ownerId)) this.close(false);
+    if (fallbackToOwner && await this.handlers.openDocument(result.ownerId)) {
+      this.close(false);
+      return;
+    }
+    this.navigationError = destination === "derivation"
+      ? `The detailed derivation anchor for ${result.id} was not found. The owner document was not opened as a substitute.`
+      : destination === "statement"
+        ? `The registered-statement anchor for ${result.id} was not found.`
+        : `The owner document for ${result.id} was not found.`;
+    const details = this.detailsHost;
+    if (details?.isConnected) this.renderDetails(details);
   }
 
   private async openManifest(): Promise<void> {
@@ -565,10 +558,4 @@ function toggle(
   input.addEventListener("change", () => onChange(input.checked));
   element.append(input, document.createTextNode(text));
   return element;
-}
-
-function detail(title: string, text: string): HTMLElement {
-  const section = el("section", "graph-detail-section");
-  section.append(el("h3", "graph-detail-label", title), el("p", "graph-detail-copy", text));
-  return section;
 }

@@ -3,6 +3,8 @@ import {
   DependencyGraphCanvas,
 } from "./dependency-graph-canvas";
 import {
+  resultClaimAnchors,
+  resultDerivationAnchors,
   resultOwnerAnchors,
   type ResultNode,
   type ValidationState,
@@ -29,6 +31,7 @@ import {
 import { savedProjectSelection, saveProjectSelection } from "./project-selection";
 import { openExternalUrl } from "./tauri-bridge";
 import { createLeanCertificateBadge } from "./lean-certificate-ui";
+import { createResultInspector } from "./result-inspector";
 
 export interface ProjectOverviewHandlers {
   loadCatalog(force?: boolean): Promise<ProjectCatalogLoadResult>;
@@ -205,6 +208,8 @@ export class ProjectOverviewView {
 
     const keyResults = this.keyResultsPanel(snapshot);
     if (keyResults) this.root.append(keyResults);
+    const selectedResult = this.selectedResultPanel(snapshot);
+    if (selectedResult) this.root.append(selectedResult);
 
     const attention = resultsNeedingAttention(snapshot, this.project);
     const main = el("div", "overview-primary");
@@ -330,19 +335,6 @@ export class ProjectOverviewView {
     });
     host.append(this.canvas.element);
     panel.append(host);
-    const selected = this.selectedResultId ? snapshot.dependencyCatalog.byId.get(this.selectedResultId) : undefined;
-    if (selected) {
-      const detail = el("div", "overview-frontier-detail");
-      detail.append(
-        el("strong", "overview-frontier-detail-title", `${selected.id} · ${selected.title}`),
-        el("span", "overview-frontier-detail-copy", `Evidence: ${selected.evidence || "not recorded"}`),
-        el("span", "overview-frontier-detail-copy", `Remaining: ${selected.condition || "none recorded"}`),
-      );
-      if (selected.certificate) {
-        detail.append(createLeanCertificateBadge(selected.certificate, () => void this.openResult(selected)));
-      }
-      panel.append(detail);
-    }
     return panel;
   }
 
@@ -408,24 +400,20 @@ export class ProjectOverviewView {
       section.append(more);
     }
 
+    return section;
+  }
+
+  private selectedResultPanel(snapshot: ProjectCatalogSnapshot): HTMLElement | null {
     const selected = this.selectedResultId
-      ? declared.find((item) => item.resultId === this.selectedResultId)?.result
+      ? snapshot.dependencyCatalog.byId.get(this.selectedResultId)
       : undefined;
-    if (selected) {
-      const detail = el("div", "overview-key-result-detail");
-      detail.setAttribute("role", "region");
-      detail.setAttribute("aria-label", `Evidence for ${selected.id}`);
-      detail.append(
-        el("strong", "overview-key-result-detail-title", `${selected.id} · ${selected.title}`),
-        el("p", "overview-key-result-detail-copy", `Evidence · ${selected.evidence || "Not recorded"}`),
-        el("p", "overview-key-result-detail-copy", `Remaining · ${selected.condition || "None recorded"}`),
-        button("Open owner", "overview-mini-button", () => void this.openResult(selected)),
-      );
-      if (selected.certificate) {
-        detail.append(createLeanCertificateBadge(selected.certificate, () => void this.openResult(selected)));
-      }
-      section.append(detail);
-    }
+    if (!selected) return null;
+    const section = el("section", "overview-section overview-result-inspector");
+    section.append(createResultInspector(selected, snapshot.dependencyCatalog, {
+      openStatement: (result) => void this.openResultAt(result, resultClaimAnchors(result), false, "statement"),
+      openDerivation: (result) => void this.openResultAt(result, resultDerivationAnchors(result), false, "derivation"),
+      openRelated: (result) => void this.openResultAt(result, resultClaimAnchors(result), false, "statement"),
+    }));
     return section;
   }
 
@@ -648,8 +636,17 @@ export class ProjectOverviewView {
   }
 
   private async openResult(result: ResultNode): Promise<void> {
+    await this.openResultAt(result, resultOwnerAnchors(result), true, "owner");
+  }
+
+  private async openResultAt(
+    result: ResultNode,
+    anchors: string[],
+    fallbackToOwner = false,
+    destination: "statement" | "derivation" | "owner" = "statement",
+  ): Promise<void> {
     try {
-      for (const anchor of resultOwnerAnchors(result)) {
+      for (const anchor of anchors) {
         if (await this.handlers.openDocument(result.ownerId, anchor)) {
           this.close(false);
           return;
@@ -658,9 +655,17 @@ export class ProjectOverviewView {
     } catch (error) {
       console.warn("[project overview] could not open result owner anchor", error);
     }
-    // Preserve compatibility with project manifests that identify the owner
-    // but do not yet expose any addressable result marker.
-    await this.openDocument(result.ownerId);
+    if (fallbackToOwner) {
+      // Preserve compatibility with project manifests that identify the owner
+      // but do not yet expose any addressable result marker.
+      await this.openDocument(result.ownerId);
+    } else {
+      this.showNavigationError(
+        destination === "derivation"
+          ? `The detailed derivation anchor for ${result.id} was not found. The owner document was not opened as a substitute.`
+          : `The registered-statement anchor for ${result.id} was not found.`,
+      );
+    }
   }
 
   private async openDocument(id: string, anchor?: string): Promise<void> {
@@ -692,16 +697,17 @@ export class ProjectOverviewView {
   }
 
   private renderSelection(id: string, source: "frontier" | "attention" | "key"): void {
+    const beforeTop = this.resultTarget(id, source)?.getBoundingClientRect().top;
     const scrollTop = this.root.scrollTop;
     this.render();
     this.root.scrollTop = scrollTop;
-    this.restoreResultFocus(id, source);
+    this.restoreResultPosition(id, source, beforeTop);
     // WebKit can update the compact SVG's intrinsic size one frame after the
-    // DOM replacement. Reassert the user's position after that layout pass.
+    // DOM replacement. Reassert the activated result's visual position after
+    // that layout pass, including the first insertion of the result inspector.
     requestAnimationFrame(() => {
       if (!this.isOpen) return;
-      this.root.scrollTop = scrollTop;
-      this.restoreResultFocus(id, source);
+      this.restoreResultPosition(id, source, beforeTop);
     });
   }
 
@@ -714,7 +720,10 @@ export class ProjectOverviewView {
     });
   }
 
-  private restoreResultFocus(id: string, source: "frontier" | "attention" | "key"): void {
+  private resultTarget(
+    id: string,
+    source: "frontier" | "attention" | "key",
+  ): HTMLElement | undefined {
     const selector = source === "frontier"
       ? ".overview-frontier [data-result-id]"
       : source === "key"
@@ -722,8 +731,22 @@ export class ProjectOverviewView {
       : isPhoneViewport()
         ? ".overview-result-cards [data-result-id]"
         : ".overview-results-table [data-result-id]";
-    const target = [...this.root.querySelectorAll<HTMLElement>(selector)]
+    return [...this.root.querySelectorAll<HTMLElement>(selector)]
       .find((item) => item.dataset.resultId === id);
+  }
+
+  private restoreResultPosition(
+    id: string,
+    source: "frontier" | "attention" | "key",
+    beforeTop: number | undefined,
+  ): void {
+    const target = this.resultTarget(id, source);
+    if (target && beforeTop !== undefined) {
+      const delta = target.getBoundingClientRect().top - beforeTop;
+      if (Number.isFinite(delta) && Math.abs(delta) > 0.5) {
+        this.root.scrollTop += delta;
+      }
+    }
     target?.focus({ preventScroll: true });
   }
 }

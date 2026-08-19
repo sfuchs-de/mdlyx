@@ -177,7 +177,7 @@ library: {"id":"project-v2-results","title":"Generated results","projects":["pro
     "2 results · 1 validated · 1 partial · 0 unvalidated · 0 disputed",
   );
   await page.locator('[data-result-id="R-B"]').click();
-  await expect(page.locator(".graph-details")).toContainText("Curated status");
+  await expect(page.locator(".graph-details")).toContainText("Curated · final");
   await expect(page.locator(".graph-details")).toContainText("final");
   await expect(page.locator(".graph-details")).toContainText("proposition");
   await expect(page.locator(".graph-details")).toContainText("counterfactual");
@@ -259,7 +259,7 @@ test("phone graph keeps controls, canvas, and result details reachable", async (
   await root.locator('[data-result-id="R-B"]').click();
   const details = page.getByRole("dialog", { name: "Result details" });
   await expect(details).toBeVisible();
-  await expect(details.locator(".graph-detail-open")).toBeInViewport();
+  await expect(details.getByRole("button", { name: "Registered statement" })).toBeInViewport();
   expect(await root.locator(".graph-canvas").evaluate((element) => element.clientHeight > 250)).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
 
